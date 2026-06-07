@@ -1,0 +1,11 @@
+[project]
+name = "factor-regime-agent"
+version = "0.4.0"
+description = "Interpretable factor-regime research platform for daily market briefs."
+requires-python = ">=3.11,<3.13"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

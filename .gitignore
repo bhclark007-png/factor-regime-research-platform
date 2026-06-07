@@ -1,0 +1,15 @@
+.venv/
+.cache/
+__pycache__/
+*.py[cod]
+
+output/.cache/
+output/runs/
+output/latest/
+output/*.csv
+output/*.json
+output/*.md
+!output/.gitkeep
+
+.streamlit/secrets.toml
+.env
