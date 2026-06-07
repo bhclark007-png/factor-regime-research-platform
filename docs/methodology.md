@@ -18,13 +18,21 @@ Primary forecast horizons:
 
 Current prototype uses a configurable horizon and writes summary metrics. Future work should store separate walk-forward prediction histories for each horizon.
 
+The v0.5 validation module runs expanding-window model validation across 1M, 3M, and 6M horizons. Each validation observation trains only on prior months, selects the highest-probability factor, and compares that selected factor's forward excess return with:
+
+- equal-weight factor exposure
+- SPY baseline, represented as zero factor excess return
+- the realized best factor for confusion-matrix analysis
+
 Tracked metrics:
 
 - Hit rate
-- Precision / win rate
-- Recall, once explicit class prediction histories exist
+- Average forward excess return
+- Information ratio
 - Forward excess returns
 - Max drawdown
+- Turnover proxy
+- Confusion matrix
 
 ## Validation Framework
 

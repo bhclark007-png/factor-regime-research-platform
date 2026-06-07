@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from factor_agent.analog import find_historical_analogs
-from factor_agent.backtest import factor_backtest_metrics
+from factor_agent.backtest import factor_backtest_metrics, validate_factor_model
 from factor_agent.features import build_factor_excess_returns, forward_factor_winner
 from factor_agent.risk import dynamic_regime_risks
 from factor_agent.scores import credit_leadership_score, regime_label, regime_stability_score
@@ -92,6 +92,30 @@ class EngineContractTests(unittest.TestCase):
         metrics = factor_backtest_metrics(forward, winner)
         self.assertEqual(metrics["observations"], 6)
         self.assertEqual(metrics["factor_metrics"][0]["factor"], "value")
+
+    def test_validation_contract(self) -> None:
+        index = pd.date_range("2018-01-31", periods=84, freq="ME")
+        features = pd.DataFrame(
+            {
+                "hy_oas": [300 + (i % 12) for i in range(84)],
+                "vix": [15 + (i % 9) for i in range(84)],
+                "cpi_3m_ann": [2 + (i % 4) * 0.2 for i in range(84)],
+                "ism_mfg": [48 + (i % 8) for i in range(84)],
+            },
+            index=index,
+        )
+        factor_excess = pd.DataFrame(
+            {
+                "value": [0.01 if i % 3 == 0 else -0.002 for i in range(84)],
+                "quality": [0.008 if i % 3 == 1 else 0.001 for i in range(84)],
+                "momentum": [0.009 if i % 3 == 2 else -0.001 for i in range(84)],
+            },
+            index=index,
+        )
+        validation = validate_factor_model(features, factor_excess, horizons=(1, 3), min_train_months=36)
+        self.assertEqual(validation["version"], "0.5")
+        self.assertIn("1", validation["by_horizon"])
+        self.assertIn("confusion_matrix", validation["by_horizon"]["1"])
 
 
 if __name__ == "__main__":

@@ -68,6 +68,8 @@ The dashboard reads:
 output/latest/run_result.json
 ```
 
+The dashboard includes a v0.5 validation section comparing model-selected factor exposure with equal-weight factor exposure and SPY over 1M, 3M, and 6M horizons. The daily brief intentionally remains concise and does not include the validation tables.
+
 ## Output Layout
 
 - `output/runs/<run_id>/`: immutable run artifacts.

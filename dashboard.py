@@ -260,6 +260,62 @@ def render_analogs(result: dict) -> None:
     st.dataframe(display, hide_index=True, use_container_width=True)
 
 
+def render_validation(result: dict) -> None:
+    validation = result.get("validation")
+    if not validation:
+        return
+
+    st.subheader("v0.5 Validation")
+    st.caption(validation.get("objective", "Model validation"))
+
+    summary = frame_from_records(validation.get("summary", []))
+    if not summary.empty:
+        display = summary.copy()
+        pct_cols = [
+            "hit_rate",
+            "avg_forward_excess_return",
+            "avg_excess_vs_equal_weight_factors",
+            "avg_excess_vs_spy",
+            "max_drawdown",
+            "turnover_proxy",
+            "equal_weight_factor_avg_forward_excess_return",
+        ]
+        for col in pct_cols:
+            if col in display:
+                display[col] = display[col].map(lambda x: "n/a" if pd.isna(x) else pct(x))
+        for col in ["information_ratio", "information_ratio_vs_equal_weight_factors"]:
+            if col in display:
+                display[col] = display[col].map(lambda x: "n/a" if pd.isna(x) else f"{float(x):.2f}")
+        st.dataframe(display, hide_index=True, use_container_width=True)
+
+    horizons = validation.get("by_horizon", {})
+    if not horizons:
+        return
+    tabs = st.tabs([f"{h}M" for h in horizons.keys()])
+    for tab_item, (horizon, payload) in zip(tabs, horizons.items()):
+        with tab_item:
+            cm = frame_from_records(payload.get("confusion_matrix", []))
+            if cm.empty:
+                st.info("No confusion matrix available for this horizon.")
+            else:
+                matrix = cm.pivot(index="actual", columns="predicted", values="count").fillna(0).astype(int)
+                st.dataframe(matrix, use_container_width=True)
+
+            predictions = frame_from_records(payload.get("predictions", []))
+            if not predictions.empty:
+                recent = predictions.tail(12).sort_values("date", ascending=False).copy()
+                for col in [
+                    "confidence",
+                    "selected_forward_excess_return",
+                    "equal_weight_factor_excess_return",
+                    "spy_forward_excess_return",
+                ]:
+                    if col in recent:
+                        recent[col] = recent[col].map(pct)
+                st.markdown("Recent validation observations")
+                st.dataframe(recent, hide_index=True, use_container_width=True)
+
+
 def render_source_health(result: dict) -> None:
     st.subheader("Data Source Health")
     data_status = result.get("data_status", {})
@@ -326,6 +382,8 @@ def main() -> None:
     render_model_detail(result)
     st.markdown('<div class="section"></div>', unsafe_allow_html=True)
     render_analogs(result)
+    st.markdown('<div class="section"></div>', unsafe_allow_html=True)
+    render_validation(result)
     st.markdown('<div class="section"></div>', unsafe_allow_html=True)
     render_source_health(result)
     st.markdown('<div class="section"></div>', unsafe_allow_html=True)

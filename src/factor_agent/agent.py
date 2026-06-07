@@ -14,7 +14,7 @@ from .model import train_factor_model, summarize_forward_returns
 from .scores import credit_leadership_score, regime_stability_score, regime_label
 from .brief import make_daily_brief
 from .analog import find_historical_analogs
-from .backtest import factor_backtest_metrics
+from .backtest import factor_backtest_metrics, validate_factor_model
 from .risk import dynamic_regime_risks
 
 
@@ -116,6 +116,7 @@ def run(
     backtest_summary = summarize_forward_returns(forward_returns, winner)
     backtest_summary.to_csv(run_dir / "backtest_summary.csv", index=False)
     backtest_metrics = factor_backtest_metrics(forward_returns, winner)
+    validation = validate_factor_model(features, factor_excess)
 
     result["feature_importances"].rename("importance").to_csv(run_dir / "feature_importances.csv")
 
@@ -162,6 +163,7 @@ def run(
         "feature_importances": _series_to_records(result["feature_importances"].head(25), "importance"),
         "backtest_summary": backtest_summary.to_dict(orient="records"),
         "backtest_metrics": backtest_metrics,
+        "validation": validation,
         "data_status": {
             "sources_total": len(source_statuses),
             "sources_successful": len(successful_sources),

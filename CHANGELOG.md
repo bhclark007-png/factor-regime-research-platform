@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.0 - Validation Framework
+
+- Added multi-horizon walk-forward validation for 1M, 3M, and 6M factor leadership.
+- Compared model-selected factor exposure against equal-weight factors and SPY.
+- Added hit rate, average forward excess return, information ratio, max drawdown, turnover proxy, and confusion matrices.
+- Added dashboard-only validation section while preserving the daily brief format.
+
 ## 0.4.0 - Repository Platform Scaffold
 
 - Moved importable code under `src/factor_agent`.
