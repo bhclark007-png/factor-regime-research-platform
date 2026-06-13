@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, asdict
 from typing import Any
 
 
@@ -60,7 +60,12 @@ def validate_run_result(payload: dict[str, Any]) -> None:
     if missing:
         raise ValueError(f"RunResult missing required fields: {missing}")
 
-    regime_required = {"label", "top_factor", "top_factor_probability", "adjusted_confidence"}
+    regime_required = {
+        "label",
+        "top_factor",
+        "top_factor_probability",
+        "adjusted_confidence",
+    }
     regime_missing = sorted(regime_required - set(payload["regime"]))
     if regime_missing:
         raise ValueError(f"RunResult.regime missing required fields: {regime_missing}")
@@ -76,12 +81,21 @@ def validate_run_result(payload: dict[str, Any]) -> None:
 
     factor_history = payload["factor_history"]
     if factor_history.get("selected_mode") not in {"academic", "tradeable", "combined"}:
-        raise ValueError("RunResult.factor_history.selected_mode must be academic, tradeable, or combined")
+        raise ValueError(
+            "RunResult.factor_history.selected_mode must be academic, tradeable, or combined"
+        )
 
     dynamic_risks = payload.get("dynamic_risks", {})
     if dynamic_risks and dynamic_risks.get("method") != "stress_percentile_monitoring":
-        raise ValueError("RunResult.dynamic_risks.method must describe stress-percentile monitoring")
+        raise ValueError(
+            "RunResult.dynamic_risks.method must describe stress-percentile monitoring"
+        )
 
     break_risks = payload.get("regime_break_risks", {})
-    if break_risks and break_risks.get("method") != "historical_regime_break_monitoring":
-        raise ValueError("RunResult.regime_break_risks.method must describe historical regime-break monitoring")
+    if (
+        break_risks
+        and break_risks.get("method") != "historical_regime_break_monitoring"
+    ):
+        raise ValueError(
+            "RunResult.regime_break_risks.method must describe historical regime-break monitoring"
+        )

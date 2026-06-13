@@ -9,7 +9,11 @@ import pandas as pd
 
 from .config import FRED_SERIES, ETF_TICKERS
 from .data import get_fred, get_etf_prices
-from .features import build_monthly_features, build_factor_excess_returns, forward_factor_winner
+from .features import (
+    build_monthly_features,
+    build_factor_excess_returns,
+    forward_factor_winner,
+)
 from .french import get_kenneth_french_factors, combine_academic_and_tradeable_factors
 from .model import train_factor_model, summarize_forward_returns
 from .scores import credit_leadership_score, regime_stability_score, regime_label
@@ -19,7 +23,6 @@ from .backtest import factor_backtest_metrics, validate_factor_model
 from .quality import evaluate_data_quality
 from .risk import dynamic_regime_risks, regime_break_risk_monitor
 from .schema import RegimeResult, RunResult, validate_run_result
-
 
 FACTOR_SOURCE_MODES = {"academic", "tradeable", "combined"}
 
@@ -39,7 +42,9 @@ def _write_json(path: Path, payload: dict) -> None:
     path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
 
 
-def _copy_latest(run_dir: Path, latest_dir: Path, root_dir: Path, filenames: list[str]) -> None:
+def _copy_latest(
+    run_dir: Path, latest_dir: Path, root_dir: Path, filenames: list[str]
+) -> None:
     latest_dir.mkdir(parents=True, exist_ok=True)
     for filename in filenames:
         source = run_dir / filename
@@ -131,13 +136,17 @@ def run(
     features = build_monthly_features(macro)
     tradeable_factor_excess = build_factor_excess_returns(prices)
     print("Loading Kenneth French academic factor history...")
-    french_history = get_kenneth_french_factors(start=start, end=end, cache_dir=cache_dir, refresh=refresh_data)
+    french_history = get_kenneth_french_factors(
+        start=start, end=end, cache_dir=cache_dir, refresh=refresh_data
+    )
     factor_excess, factor_history_selection = _select_factor_returns(
         factor_source,
         french_history.returns,
         tradeable_factor_excess,
     )
-    forward_returns, winner = forward_factor_winner(factor_excess, horizon_months=horizon)
+    forward_returns, winner = forward_factor_winner(
+        factor_excess, horizon_months=horizon
+    )
 
     print("Training regime model...")
     result = train_factor_model(features, winner)
@@ -154,11 +163,13 @@ def run(
     probs = result["latest_probabilities"].rename("probability").to_frame()
     probs.to_csv(run_dir / "factor_probabilities.csv")
 
-    scores = pd.DataFrame([
-        {"score": "credit_leadership", "value": credit_score},
-        {"score": "regime_stability", "value": stability_score},
-        {"score": "cv_accuracy", "value": result["cv_accuracy"]},
-    ])
+    scores = pd.DataFrame(
+        [
+            {"score": "credit_leadership", "value": credit_score},
+            {"score": "regime_stability", "value": stability_score},
+            {"score": "cv_accuracy", "value": result["cv_accuracy"]},
+        ]
+    )
     scores.to_csv(run_dir / "regime_scores.csv", index=False)
 
     backtest_summary = summarize_forward_returns(forward_returns, winner)
@@ -166,13 +177,19 @@ def run(
     backtest_metrics = factor_backtest_metrics(forward_returns, winner)
     validation = validate_factor_model(features, factor_excess)
 
-    result["feature_importances"].rename("importance").to_csv(run_dir / "feature_importances.csv")
+    result["feature_importances"].rename("importance").to_csv(
+        run_dir / "feature_importances.csv"
+    )
 
-    source_statuses = [s.to_dict() for s in [*fred_status, *etf_status]] + french_history.statuses
+    source_statuses = [
+        s.to_dict() for s in [*fred_status, *etf_status]
+    ] + french_history.statuses
     successful_sources = [s for s in source_statuses if s["status"] != "failed"]
     failed_sources = [s for s in source_statuses if s["status"] == "failed"]
     data_quality = evaluate_data_quality(source_statuses)
-    adjusted_confidence = float(result["latest_probabilities"].iloc[0]) * float(data_quality["confidence_multiplier"])
+    adjusted_confidence = float(result["latest_probabilities"].iloc[0]) * float(
+        data_quality["confidence_multiplier"]
+    )
 
     brief = make_daily_brief(
         probabilities=result["latest_probabilities"],
@@ -208,13 +225,17 @@ def run(
             regime_stability_score=int(stability_score),
             cv_accuracy=float(result["cv_accuracy"]),
         ),
-        factor_probabilities=_series_to_records(result["latest_probabilities"], "probability"),
+        factor_probabilities=_series_to_records(
+            result["latest_probabilities"], "probability"
+        ),
         credit_drivers=credit_drivers,
         risks=risks,
         dynamic_risks=dynamic_risks,
         regime_break_risks=regime_break_risks,
         historical_analogs=analogs,
-        feature_importances=_series_to_records(result["feature_importances"].head(25), "importance"),
+        feature_importances=_series_to_records(
+            result["feature_importances"].head(25), "importance"
+        ),
         backtest_summary=backtest_summary.to_dict(orient="records"),
         backtest_metrics=backtest_metrics,
         validation=validation,
@@ -282,12 +303,26 @@ def run(
 
 def main():
     parser = argparse.ArgumentParser(description="Run the Factor Regime Agent.")
-    parser.add_argument("--start", default="2003-01-01", help="Start date, e.g. 2003-01-01")
-    parser.add_argument("--end", default=None, help="End date, optional, e.g. 2026-06-30")
-    parser.add_argument("--horizon", type=int, default=3, help="Forward return horizon in months")
+    parser.add_argument(
+        "--start", default="2003-01-01", help="Start date, e.g. 2003-01-01"
+    )
+    parser.add_argument(
+        "--end", default=None, help="End date, optional, e.g. 2026-06-30"
+    )
+    parser.add_argument(
+        "--horizon", type=int, default=3, help="Forward return horizon in months"
+    )
     parser.add_argument("--output", default="output", help="Output folder")
-    parser.add_argument("--refresh-data", action="store_true", help="Force fresh FRED/Yahoo downloads instead of using cache")
-    parser.add_argument("--run-id", default=None, help="Optional run identifier for reproducible artifact paths")
+    parser.add_argument(
+        "--refresh-data",
+        action="store_true",
+        help="Force fresh FRED/Yahoo downloads instead of using cache",
+    )
+    parser.add_argument(
+        "--run-id",
+        default=None,
+        help="Optional run identifier for reproducible artifact paths",
+    )
     parser.add_argument(
         "--factor-source",
         choices=sorted(FACTOR_SOURCE_MODES),

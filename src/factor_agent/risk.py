@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import pandas as pd
 
-
 MONITORED_RISK_FEATURES = {
     "hy_oas_3m_chg": "Credit spread deterioration",
     "ccc_minus_hy_3m_chg": "Lower-quality credit underperformance",
@@ -41,7 +40,9 @@ def dynamic_regime_risks(features: pd.DataFrame, top_n: int = 5) -> dict:
             latest_stress = latest
 
         percentile = float((stress_series <= latest_stress).mean())
-        transition_frequency = float((stress_series >= stress_series.quantile(0.8)).mean())
+        transition_frequency = float(
+            (stress_series >= stress_series.quantile(0.8)).mean()
+        )
         rows.append(
             {
                 "indicator": feature,
@@ -49,7 +50,11 @@ def dynamic_regime_risks(features: pd.DataFrame, top_n: int = 5) -> dict:
                 "latest_value": latest,
                 "stress_percentile": percentile,
                 "historical_frequency_before_transitions": transition_frequency,
-                "direction": "lower is riskier" if feature in {"ism_3m_chg", "curve_2s10s_3m_chg"} else "higher is riskier",
+                "direction": (
+                    "lower is riskier"
+                    if feature in {"ism_3m_chg", "curve_2s10s_3m_chg"}
+                    else "higher is riskier"
+                ),
             }
         )
 
@@ -58,7 +63,10 @@ def dynamic_regime_risks(features: pd.DataFrame, top_n: int = 5) -> dict:
         transition_probability = None
     else:
         transition_probability = float(
-            min(0.95, max(0.05, sum(row["stress_percentile"] for row in risks) / len(risks)))
+            min(
+                0.95,
+                max(0.05, sum(row["stress_percentile"] for row in risks) / len(risks)),
+            )
         )
 
     return {
@@ -89,17 +97,20 @@ def identify_regime_breaks(
     aligned = winner.dropna()
     if aligned.empty:
         return []
-    stress_cols = [c for c in ["hy_oas_3m_chg", "vix_1m_chg", "ccc_minus_hy_3m_chg"] if c in features]
+    stress_cols = [
+        c
+        for c in ["hy_oas_3m_chg", "vix_1m_chg", "ccc_minus_hy_3m_chg"]
+        if c in features
+    ]
     stress = pd.Series(0.0, index=features.index)
     for col in stress_cols:
         s = _stress_series(features, col)
         percentile = s.rank(pct=True)
-        stress = stress.add(percentile.reindex(stress.index).fillna(0), fill_value=0)
-    if stress_cols:
-        stress = stress / len(stress_cols)
+        stress = pd.concat(
+            [stress, percentile.reindex(stress.index).fillna(0)], axis=1
+        ).max(axis=1)
 
     breaks = []
-    current = aligned.iloc[0]
     streak = 1
     for i in range(1, len(aligned)):
         date = aligned.index[i]
@@ -112,7 +123,6 @@ def identify_regime_breaks(
             stress_value = stress.reindex([date]).iloc[0] if date in stress.index else 0
             if not stress_cols or stress_value >= 0.6:
                 breaks.append(pd.Timestamp(date))
-        current = value
         streak = 1
     return breaks
 
@@ -175,18 +185,28 @@ def regime_break_risk_monitor(
     rows = sorted(
         rows,
         key=lambda row: (
-            -1 if row["historical_frequency_before_transitions"] is None else -row["historical_frequency_before_transitions"],
+            (
+                -1
+                if row["historical_frequency_before_transitions"] is None
+                else -row["historical_frequency_before_transitions"]
+            ),
             -row["severity_percentile"],
         ),
     )[:top_n]
 
     transition_probability = None
-    usable = [r for r in rows if r["historical_frequency_before_transitions"] is not None]
+    usable = [
+        r for r in rows if r["historical_frequency_before_transitions"] is not None
+    ]
     if usable:
         transition_probability = float(
             min(
                 0.95,
-                sum(r["historical_frequency_before_transitions"] * r["severity_percentile"] for r in usable)
+                sum(
+                    r["historical_frequency_before_transitions"]
+                    * r["severity_percentile"]
+                    for r in usable
+                )
                 / len(usable),
             )
         )

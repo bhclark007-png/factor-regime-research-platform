@@ -28,7 +28,7 @@ def make_daily_brief(
     top_prob = probabilities.iloc[0] if len(probabilities) else float("nan")
 
     lines = []
-    lines.append(f"# Daily Factor Regime Brief")
+    lines.append("# Daily Factor Regime Brief")
     lines.append("")
     lines.append(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
     lines.append("")
@@ -55,33 +55,47 @@ def make_daily_brief(
         for d in credit_drivers[:6]:
             lines.append(f"- {d}")
     else:
-        lines.append("- No major credit driver was detected from the latest public data.")
+        lines.append(
+            "- No major credit driver was detected from the latest public data."
+        )
     lines.append("")
     lines.append("## Regime Change Risks")
     lines.append("")
     if dynamic_risks and dynamic_risks.get("transition_probability") is not None:
-        lines.append(f"**Estimated transition pressure:** {_fmt_pct(dynamic_risks['transition_probability'])}")
+        lines.append(
+            f"**Estimated transition pressure:** {_fmt_pct(dynamic_risks['transition_probability'])}"
+        )
         lines.append("")
         lines.append("| Indicator | Risk | Stress Percentile | Direction |")
         lines.append("|---|---|---:|---|")
         for r in dynamic_risks.get("risks", [])[:5]:
-            lines.append(f"| {r['indicator']} | {r['risk']} | {_fmt_pct(r['stress_percentile'])} | {r['direction']} |")
+            lines.append(
+                f"| {r['indicator']} | {r['risk']} | {_fmt_pct(r['stress_percentile'])} | {r['direction']} |"
+            )
         lines.append("")
 
     if risks:
-        lines.append("| Risk | Current | Warning Zone | Severity | Portfolio Implication |")
+        lines.append(
+            "| Risk | Current | Warning Zone | Severity | Portfolio Implication |"
+        )
         lines.append("|---|---|---|---|---|")
         for r in risks:
-            lines.append(f"| {r['risk']} | {r['current']} | {r['warning']} | {r['severity']} | {r['implication']} |")
+            lines.append(
+                f"| {r['risk']} | {r['current']} | {r['warning']} | {r['severity']} | {r['implication']} |"
+            )
     else:
-        lines.append("No major regime-change warnings were triggered. This does not mean risk is absent; it means the monitored public indicators are not currently flashing transition signals.")
+        lines.append(
+            "No major regime-change warnings were triggered. This does not mean risk is absent; it means the monitored public indicators are not currently flashing transition signals."
+        )
     lines.append("")
     lines.append("## Historical Analog Summary")
     lines.append("")
     if analogs and analogs.get("analogs"):
         lines.append(analogs.get("summary", "Historical analogs are available."))
         lines.append("")
-        lines.append("| Date | Distance | Best Forward Factor | Forward Excess Return |")
+        lines.append(
+            "| Date | Distance | Best Forward Factor | Forward Excess Return |"
+        )
         lines.append("|---|---:|---|---:|")
         for analog in analogs.get("analogs", [])[:5]:
             lines.append(
@@ -93,7 +107,9 @@ def make_daily_brief(
     lines.append("")
     lines.append("## Most Important Historical Drivers in the Model")
     lines.append("")
-    lines.append("These are the variables the prototype model relied on most. Treat this as a research clue, not a causal conclusion.")
+    lines.append(
+        "These are the variables the prototype model relied on most. Treat this as a research clue, not a causal conclusion."
+    )
     lines.append("")
     lines.append("| Feature | Importance |")
     lines.append("|---|---:|")

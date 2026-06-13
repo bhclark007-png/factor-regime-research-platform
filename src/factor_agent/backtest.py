@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import numpy as np
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
@@ -47,7 +46,9 @@ def factor_backtest_metrics(forward_returns: pd.DataFrame, winner: pd.Series) ->
     }
 
 
-def clean_model_frame(features: pd.DataFrame, winner: pd.Series) -> tuple[pd.DataFrame, pd.Series]:
+def clean_model_frame(
+    features: pd.DataFrame, winner: pd.Series
+) -> tuple[pd.DataFrame, pd.Series]:
     """Prepare aligned model features and labels for validation."""
     dataset = features.join(winner.rename("winner")).dropna(subset=["winner"])
     X = dataset.drop(columns=["winner"]).dropna(axis=1, how="all")
@@ -157,19 +158,29 @@ def _strategy_summary(predictions: pd.DataFrame) -> dict:
     return {
         "observations": int(len(predictions)),
         "hit_rate": float(predictions["hit"].mean()) if len(predictions) else None,
-        "avg_forward_excess_return": float(selected.mean()) if len(predictions) else None,
-        "avg_excess_vs_equal_weight_factors": float(active_vs_equal_weight.mean()) if len(predictions) else None,
+        "avg_forward_excess_return": (
+            float(selected.mean()) if len(predictions) else None
+        ),
+        "avg_excess_vs_equal_weight_factors": (
+            float(active_vs_equal_weight.mean()) if len(predictions) else None
+        ),
         "avg_excess_vs_spy": float(selected.mean()) if len(predictions) else None,
         "information_ratio": _information_ratio(selected),
-        "information_ratio_vs_equal_weight_factors": _information_ratio(active_vs_equal_weight),
+        "information_ratio_vs_equal_weight_factors": _information_ratio(
+            active_vs_equal_weight
+        ),
         "max_drawdown": _max_drawdown(selected),
         "turnover_proxy": _turnover_proxy(predictions["selected_factor"]),
-        "equal_weight_factor_avg_forward_excess_return": float(equal_weight.mean()) if len(predictions) else None,
+        "equal_weight_factor_avg_forward_excess_return": (
+            float(equal_weight.mean()) if len(predictions) else None
+        ),
         "spy_forward_excess_return": 0.0,
     }
 
 
-def _prediction_summary(predictions: pd.DataFrame, return_col: str = "selected_forward_excess_return") -> dict:
+def _prediction_summary(
+    predictions: pd.DataFrame, return_col: str = "selected_forward_excess_return"
+) -> dict:
     if predictions.empty:
         return {
             "observations": 0,
@@ -186,7 +197,11 @@ def _prediction_summary(predictions: pd.DataFrame, return_col: str = "selected_f
         "avg_forward_excess_return": float(returns.mean()),
         "information_ratio": _information_ratio(returns),
         "max_drawdown": _max_drawdown(returns),
-        "turnover_proxy": _turnover_proxy(predictions["selected_factor"]) if "selected_factor" in predictions else None,
+        "turnover_proxy": (
+            _turnover_proxy(predictions["selected_factor"])
+            if "selected_factor" in predictions
+            else None
+        ),
     }
 
 
@@ -221,7 +236,7 @@ def _baseline_predictions(
             selected = str(y_train.iloc[-1])
             confidence = 1.0
         elif baseline == "factor_momentum":
-            trailing = factor_history.iloc[max(0, i - 6):i].sum().dropna()
+            trailing = factor_history.iloc[max(0, i - 6) : i].sum().dropna()
             if not trailing.empty:
                 selected = str(trailing.idxmax())
                 confidence = float(trailing.rank(pct=True).max())
@@ -233,15 +248,21 @@ def _baseline_predictions(
                 LogisticRegression(max_iter=300, solver="lbfgs"),
             )
             model.fit(X_train, y_train)
-            probabilities = pd.Series(model.predict_proba(X.iloc[[i]])[0], index=model.classes_).sort_values(ascending=False)
+            probabilities = pd.Series(
+                model.predict_proba(X.iloc[[i]])[0], index=model.classes_
+            ).sort_values(ascending=False)
             selected = str(probabilities.index[0])
             confidence = float(probabilities.iloc[0])
         elif baseline == "decision_tree":
             if y_train.nunique() < 2:
                 continue
-            model = DecisionTreeClassifier(max_depth=3, min_samples_leaf=8, random_state=42)
+            model = DecisionTreeClassifier(
+                max_depth=3, min_samples_leaf=8, random_state=42
+            )
             model.fit(X_train, y_train)
-            probabilities = pd.Series(model.predict_proba(X.iloc[[i]])[0], index=model.classes_).sort_values(ascending=False)
+            probabilities = pd.Series(
+                model.predict_proba(X.iloc[[i]])[0], index=model.classes_
+            ).sort_values(ascending=False)
             selected = str(probabilities.index[0])
             confidence = float(probabilities.iloc[0])
 
@@ -296,7 +317,9 @@ def validate_factor_model(
         factor_excess = factor_excess.loc[factor_excess.index >= validation_start]
         features = features.loc[features.index >= validation_start]
     else:
-        validation_start = factor_excess.index.min() if not factor_excess.empty else None
+        validation_start = (
+            factor_excess.index.min() if not factor_excess.empty else None
+        )
 
     results = {}
     summaries = []
@@ -338,7 +361,12 @@ def validate_factor_model(
             }
 
         baseline_results = {}
-        for baseline in ["previous_winner", "factor_momentum", "logistic_regression", "decision_tree"]:
+        for baseline in [
+            "previous_winner",
+            "factor_momentum",
+            "logistic_regression",
+            "decision_tree",
+        ]:
             baseline_predictions = _baseline_predictions(
                 features,
                 factor_excess,
@@ -350,12 +378,19 @@ def validate_factor_model(
             )
             baseline_results[baseline] = _prediction_summary(baseline_predictions)
 
-        equal_weight_returns = forward.loc[predictions["date"]].mean(axis=1) if not predictions.empty else pd.Series(dtype=float)
-        equal_weight_frame = pd.DataFrame({"equal_weight_return": equal_weight_returns})
+        equal_weight_returns = (
+            forward.loc[predictions["date"]].mean(axis=1)
+            if not predictions.empty
+            else pd.Series(dtype=float)
+        )
         baseline_results["equal_weight_factors"] = {
             "observations": int(len(equal_weight_returns)),
             "hit_rate": None,
-            "avg_forward_excess_return": float(equal_weight_returns.mean()) if len(equal_weight_returns) else None,
+            "avg_forward_excess_return": (
+                float(equal_weight_returns.mean())
+                if len(equal_weight_returns)
+                else None
+            ),
             "information_ratio": _information_ratio(equal_weight_returns),
             "max_drawdown": _max_drawdown(equal_weight_returns),
             "turnover_proxy": 0.0,
@@ -378,7 +413,13 @@ def validate_factor_model(
             if model_avg is not None and baseline_avg is not None:
                 excess = float(model_avg - baseline_avg)
                 adds_value = bool(excess > 0)
-            comparisons.append({"baseline": name, "model_excess_return_advantage": excess, "model_adds_value": adds_value})
+            comparisons.append(
+                {
+                    "baseline": name,
+                    "model_excess_return_advantage": excess,
+                    "model_adds_value": adds_value,
+                }
+            )
 
         results[str(horizon)]["baselines"] = baseline_results
         results[str(horizon)]["model_value_add"] = comparisons
@@ -391,8 +432,16 @@ def validate_factor_model(
         "validation_window": {
             "max_months": max_validation_months,
             "step_months": validation_step_months,
-            "start": validation_start.strftime("%Y-%m-%d") if validation_start is not None else None,
-            "end": factor_excess.index.max().strftime("%Y-%m-%d") if not factor_excess.empty else None,
+            "start": (
+                validation_start.strftime("%Y-%m-%d")
+                if validation_start is not None
+                else None
+            ),
+            "end": (
+                factor_excess.index.max().strftime("%Y-%m-%d")
+                if not factor_excess.empty
+                else None
+            ),
         },
         "summary": summaries,
         "by_horizon": results,

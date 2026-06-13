@@ -4,7 +4,6 @@ from datetime import datetime
 
 import pandas as pd
 
-
 CRITICAL_SERIES = {
     "hy_oas": 10,
     "ig_oas": 10,
@@ -19,7 +18,9 @@ CRITICAL_SERIES = {
 }
 
 
-def evaluate_data_quality(source_statuses: list[dict], as_of: str | None = None) -> dict:
+def evaluate_data_quality(
+    source_statuses: list[dict], as_of: str | None = None
+) -> dict:
     """Evaluate failed/stale critical series and derive a confidence haircut."""
     now = pd.Timestamp(as_of or datetime.now().date())
     issues = []
@@ -33,11 +34,20 @@ def evaluate_data_quality(source_statuses: list[dict], as_of: str | None = None)
         status = by_name.get(name) or by_ticker.get(name)
         if not status:
             critical_failed += 1
-            issues.append({"series": name, "issue": "missing_status", "severity": "high"})
+            issues.append(
+                {"series": name, "issue": "missing_status", "severity": "high"}
+            )
             continue
         if status.get("status") == "failed":
             critical_failed += 1
-            issues.append({"series": name, "issue": "failed", "severity": "high", "error": status.get("error")})
+            issues.append(
+                {
+                    "series": name,
+                    "issue": "failed",
+                    "severity": "high",
+                    "error": status.get("error"),
+                }
+            )
             continue
         latest = status.get("latest_observation")
         if latest:

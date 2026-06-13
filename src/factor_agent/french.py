@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from io import BytesIO, StringIO
 from pathlib import Path
 from zipfile import ZipFile
 
 import pandas as pd
 import requests
-
 
 FRENCH_5_FACTOR_URL = "https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/ftp/F-F_Research_Data_5_Factors_2x3_CSV.zip"
 FRENCH_MOMENTUM_URL = "https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/ftp/F-F_Momentum_Factor_CSV.zip"
@@ -20,11 +19,15 @@ class FactorHistory:
     statuses: list[dict]
 
 
-def _download_zip(url: str, cache_path: Path, refresh: bool = False) -> tuple[bytes, str]:
+def _download_zip(
+    url: str, cache_path: Path, refresh: bool = False
+) -> tuple[bytes, str]:
     cache_path.parent.mkdir(parents=True, exist_ok=True)
     if cache_path.exists() and not refresh:
         return cache_path.read_bytes(), "cache"
-    response = requests.get(url, timeout=60, headers={"User-Agent": "factor-regime-agent/0.1"})
+    response = requests.get(
+        url, timeout=60, headers={"User-Agent": "factor-regime-agent/0.1"}
+    )
     response.raise_for_status()
     cache_path.write_bytes(response.content)
     return response.content, "live"
@@ -59,7 +62,9 @@ def _parse_french_monthly_zip(zip_bytes: bytes) -> pd.DataFrame:
     first_col = frame.columns[0]
     frame = frame.rename(columns={first_col: "date"})
     frame = frame[frame["date"].astype(str).str.match(r"^\d{6}$", na=False)].copy()
-    frame["date"] = pd.to_datetime(frame["date"].astype(str), format="%Y%m") + pd.offsets.MonthEnd(0)
+    frame["date"] = pd.to_datetime(
+        frame["date"].astype(str), format="%Y%m"
+    ) + pd.offsets.MonthEnd(0)
     frame = frame.set_index("date").sort_index()
     for col in frame.columns:
         frame[col] = pd.to_numeric(frame[col], errors="coerce") / 100.0
@@ -80,7 +85,9 @@ def get_kenneth_french_factors(
     cache_root = Path(cache_dir) / "kenneth_french"
     statuses = []
 
-    five_bytes, five_status = _download_zip(FRENCH_5_FACTOR_URL, cache_root / "ff5.zip", refresh=refresh)
+    five_bytes, five_status = _download_zip(
+        FRENCH_5_FACTOR_URL, cache_root / "ff5.zip", refresh=refresh
+    )
     five = _parse_french_monthly_zip(five_bytes)
     statuses.append(
         {
@@ -89,11 +96,15 @@ def get_kenneth_french_factors(
             "ticker": "F-F_Research_Data_5_Factors_2x3",
             "status": five_status,
             "rows": int(len(five)),
-            "latest_observation": five.index.max().strftime("%Y-%m-%d") if not five.empty else None,
+            "latest_observation": (
+                five.index.max().strftime("%Y-%m-%d") if not five.empty else None
+            ),
         }
     )
 
-    momentum_bytes, momentum_status = _download_zip(FRENCH_MOMENTUM_URL, cache_root / "momentum.zip", refresh=refresh)
+    momentum_bytes, momentum_status = _download_zip(
+        FRENCH_MOMENTUM_URL, cache_root / "momentum.zip", refresh=refresh
+    )
     momentum = _parse_french_monthly_zip(momentum_bytes)
     statuses.append(
         {
@@ -102,7 +113,11 @@ def get_kenneth_french_factors(
             "ticker": "F-F_Momentum_Factor",
             "status": momentum_status,
             "rows": int(len(momentum)),
-            "latest_observation": momentum.index.max().strftime("%Y-%m-%d") if not momentum.empty else None,
+            "latest_observation": (
+                momentum.index.max().strftime("%Y-%m-%d")
+                if not momentum.empty
+                else None
+            ),
         }
     )
 
@@ -150,16 +165,40 @@ def combine_academic_and_tradeable_factors(
     combined = combined.reindex(all_index)
 
     for factor in all_columns:
-        academic_series = academic[factor] if factor in academic else pd.Series(index=all_index, dtype=float)
-        tradeable_series = tradeable[factor] if factor in tradeable else pd.Series(index=all_index, dtype=float)
-        combined[factor] = academic_series.reindex(all_index).combine_first(pd.Series(index=all_index, dtype=float))
-        combined[factor] = tradeable_series.reindex(all_index).combine_first(combined[factor])
-        first_tradeable = tradeable_series.dropna().index.min() if not tradeable_series.dropna().empty else None
+        academic_series = (
+            academic[factor]
+            if factor in academic
+            else pd.Series(index=all_index, dtype=float)
+        )
+        tradeable_series = (
+            tradeable[factor]
+            if factor in tradeable
+            else pd.Series(index=all_index, dtype=float)
+        )
+        combined[factor] = academic_series.reindex(all_index).combine_first(
+            pd.Series(index=all_index, dtype=float)
+        )
+        combined[factor] = tradeable_series.reindex(all_index).combine_first(
+            combined[factor]
+        )
+        first_tradeable = (
+            tradeable_series.dropna().index.min()
+            if not tradeable_series.dropna().empty
+            else None
+        )
         provenance[factor] = {
             "pre_tradeable_source": "kenneth_french" if factor in academic else None,
             "tradeable_proxy_source": "etf" if factor in tradeable else None,
-            "first_tradeable_observation": first_tradeable.strftime("%Y-%m-%d") if first_tradeable is not None else None,
-            "is_tradeable_latest": bool(factor in tradeable and tradeable_series.dropna().index.max() == combined[factor].dropna().index.max()),
+            "first_tradeable_observation": (
+                first_tradeable.strftime("%Y-%m-%d")
+                if first_tradeable is not None
+                else None
+            ),
+            "is_tradeable_latest": bool(
+                factor in tradeable
+                and tradeable_series.dropna().index.max()
+                == combined[factor].dropna().index.max()
+            ),
         }
 
     return combined.dropna(how="all"), provenance

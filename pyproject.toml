@@ -9,3 +9,6 @@ package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/test_engines.py" = ["E402"]

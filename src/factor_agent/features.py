@@ -62,7 +62,9 @@ def build_factor_excess_returns(prices: pd.DataFrame) -> pd.DataFrame:
     return out.dropna(how="all")
 
 
-def forward_factor_winner(factor_excess: pd.DataFrame, horizon_months: int = 3) -> tuple[pd.DataFrame, pd.Series]:
+def forward_factor_winner(
+    factor_excess: pd.DataFrame, horizon_months: int = 3
+) -> tuple[pd.DataFrame, pd.Series]:
     forward = factor_excess.rolling(horizon_months).sum().shift(-horizon_months)
     winner = forward.dropna(how="all").idxmax(axis=1)
     return forward, winner.rename("winner")

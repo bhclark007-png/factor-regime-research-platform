@@ -5,7 +5,6 @@ import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.metrics import accuracy_score
-from sklearn.inspection import permutation_importance
 
 
 def train_factor_model(features: pd.DataFrame, winner: pd.Series):
@@ -26,7 +25,9 @@ def train_factor_model(features: pd.DataFrame, winner: pd.Series):
     X = X.dropna(axis=1, how="any")
 
     if X.empty:
-        raise RuntimeError("No usable model features remained after cleaning missing macro data.")
+        raise RuntimeError(
+            "No usable model features remained after cleaning missing macro data."
+        )
 
     n_splits = min(5, max(2, len(dataset) // 24))
     splitter = TimeSeriesSplit(n_splits=n_splits)
@@ -54,9 +55,13 @@ def train_factor_model(features: pd.DataFrame, winner: pd.Series):
     model.fit(X, y)
 
     latest = X.iloc[[-1]]
-    probs = pd.Series(model.predict_proba(latest)[0], index=model.classes_).sort_values(ascending=False)
+    probs = pd.Series(model.predict_proba(latest)[0], index=model.classes_).sort_values(
+        ascending=False
+    )
 
-    importances = pd.Series(model.feature_importances_, index=X.columns).sort_values(ascending=False)
+    importances = pd.Series(model.feature_importances_, index=X.columns).sort_values(
+        ascending=False
+    )
 
     return {
         "model": model,
@@ -70,15 +75,19 @@ def train_factor_model(features: pd.DataFrame, winner: pd.Series):
     }
 
 
-def summarize_forward_returns(forward_returns: pd.DataFrame, winner: pd.Series) -> pd.DataFrame:
+def summarize_forward_returns(
+    forward_returns: pd.DataFrame, winner: pd.Series
+) -> pd.DataFrame:
     common = forward_returns.join(winner).dropna()
     rows = []
     for factor in forward_returns.columns:
-        rows.append({
-            "factor": factor,
-            "avg_forward_excess_return": common[factor].mean(),
-            "median_forward_excess_return": common[factor].median(),
-            "win_rate_vs_spy": (common[factor] > 0).mean(),
-            "times_best_factor": (common["winner"] == factor).sum(),
-        })
+        rows.append(
+            {
+                "factor": factor,
+                "avg_forward_excess_return": common[factor].mean(),
+                "median_forward_excess_return": common[factor].median(),
+                "win_rate_vs_spy": (common[factor] > 0).mean(),
+                "times_best_factor": (common["winner"] == factor).sum(),
+            }
+        )
     return pd.DataFrame(rows).sort_values("avg_forward_excess_return", ascending=False)

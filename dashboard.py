@@ -8,7 +8,6 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-
 APP_ROOT = Path(__file__).resolve().parent
 SRC_ROOT = APP_ROOT / "src"
 if str(SRC_ROOT) not in sys.path:
@@ -103,7 +102,9 @@ st.markdown(
 
 def load_result() -> dict:
     if not LATEST_JSON.exists():
-        st.error("No backend result found. Run the backend once to create output/latest/run_result.json.")
+        st.error(
+            "No backend result found. Run the backend once to create output/latest/run_result.json."
+        )
         st.stop()
     return json.loads(LATEST_JSON.read_text(encoding="utf-8"))
 
@@ -177,7 +178,11 @@ def render_metrics(result: dict) -> None:
     regime = result["regime"]
     cols = st.columns(5)
     cols[0].metric("Current regime", regime["label"])
-    cols[1].metric("Top factor", regime["top_factor"], pct(regime.get("adjusted_confidence", regime["top_factor_probability"])))
+    cols[1].metric(
+        "Top factor",
+        regime["top_factor"],
+        pct(regime.get("adjusted_confidence", regime["top_factor_probability"])),
+    )
     cols[2].metric("Credit leadership", score(regime["credit_leadership_score"]))
     cols[3].metric("Regime stability", score(regime["regime_stability_score"]))
     cols[4].metric("CV hit rate", pct(regime["cv_accuracy"]))
@@ -205,7 +210,9 @@ def render_risks_and_drivers(result: dict) -> None:
             st.metric("Transition pressure", pct(dynamic["transition_probability"]))
             dynamic_rows = frame_from_records(dynamic.get("risks", []))
             if not dynamic_rows.empty:
-                dynamic_rows["stress_percentile"] = dynamic_rows["stress_percentile"].map(pct)
+                dynamic_rows["stress_percentile"] = dynamic_rows[
+                    "stress_percentile"
+                ].map(pct)
                 st.dataframe(dynamic_rows, hide_index=True, use_container_width=True)
         risks = frame_from_records(result.get("risks", []))
         if risks.empty:
@@ -240,7 +247,11 @@ def render_model_detail(result: dict) -> None:
         if backtest.empty:
             st.info("No backtest summary available.")
         else:
-            for col in ["avg_forward_excess_return", "median_forward_excess_return", "win_rate_vs_spy"]:
+            for col in [
+                "avg_forward_excess_return",
+                "median_forward_excess_return",
+                "win_rate_vs_spy",
+            ]:
                 if col in backtest:
                     backtest[col] = backtest[col].map(pct)
             st.dataframe(backtest, hide_index=True, use_container_width=True)
@@ -254,9 +265,13 @@ def render_analogs(result: dict) -> None:
     if rows.empty:
         st.info("No analog periods available.")
         return
-    display = rows[["date", "distance", "best_factor", "best_factor_forward_excess_return"]].copy()
+    display = rows[
+        ["date", "distance", "best_factor", "best_factor_forward_excess_return"]
+    ].copy()
     display["distance"] = display["distance"].map(lambda x: f"{x:.2f}")
-    display["best_factor_forward_excess_return"] = display["best_factor_forward_excess_return"].map(pct)
+    display["best_factor_forward_excess_return"] = display[
+        "best_factor_forward_excess_return"
+    ].map(pct)
     st.dataframe(display, hide_index=True, use_container_width=True)
 
 
@@ -283,10 +298,14 @@ def render_validation(result: dict) -> None:
         ]
         for col in pct_cols:
             if col in display:
-                display[col] = display[col].map(lambda x: "n/a" if pd.isna(x) else pct(x))
+                display[col] = display[col].map(
+                    lambda x: "n/a" if pd.isna(x) else pct(x)
+                )
         for col in ["information_ratio", "information_ratio_vs_equal_weight_factors"]:
             if col in display:
-                display[col] = display[col].map(lambda x: "n/a" if pd.isna(x) else f"{float(x):.2f}")
+                display[col] = display[col].map(
+                    lambda x: "n/a" if pd.isna(x) else f"{float(x):.2f}"
+                )
         st.dataframe(display, hide_index=True, use_container_width=True)
 
     horizons = validation.get("by_horizon", {})
@@ -302,20 +321,29 @@ def render_validation(result: dict) -> None:
                     row = {"baseline": name, **values}
                     baseline_rows.append(row)
                 baseline_df = pd.DataFrame(baseline_rows)
-                for col in ["hit_rate", "avg_forward_excess_return", "max_drawdown", "turnover_proxy"]:
+                for col in [
+                    "hit_rate",
+                    "avg_forward_excess_return",
+                    "max_drawdown",
+                    "turnover_proxy",
+                ]:
                     if col in baseline_df:
-                        baseline_df[col] = baseline_df[col].map(lambda x: "n/a" if pd.isna(x) else pct(x))
+                        baseline_df[col] = baseline_df[col].map(
+                            lambda x: "n/a" if pd.isna(x) else pct(x)
+                        )
                 for col in ["information_ratio"]:
                     if col in baseline_df:
-                        baseline_df[col] = baseline_df[col].map(lambda x: "n/a" if pd.isna(x) else f"{float(x):.2f}")
+                        baseline_df[col] = baseline_df[col].map(
+                            lambda x: "n/a" if pd.isna(x) else f"{float(x):.2f}"
+                        )
                 st.markdown("Baseline comparison")
                 st.dataframe(baseline_df, hide_index=True, use_container_width=True)
 
             value_add = frame_from_records(payload.get("model_value_add", []))
             if not value_add.empty:
-                value_add["model_excess_return_advantage"] = value_add["model_excess_return_advantage"].map(
-                    lambda x: "n/a" if pd.isna(x) else pct(x)
-                )
+                value_add["model_excess_return_advantage"] = value_add[
+                    "model_excess_return_advantage"
+                ].map(lambda x: "n/a" if pd.isna(x) else pct(x))
                 st.markdown("Model value-add versus baselines")
                 st.dataframe(value_add, hide_index=True, use_container_width=True)
 
@@ -323,12 +351,18 @@ def render_validation(result: dict) -> None:
             if cm.empty:
                 st.info("No confusion matrix available for this horizon.")
             else:
-                matrix = cm.pivot(index="actual", columns="predicted", values="count").fillna(0).astype(int)
+                matrix = (
+                    cm.pivot(index="actual", columns="predicted", values="count")
+                    .fillna(0)
+                    .astype(int)
+                )
                 st.dataframe(matrix, use_container_width=True)
 
             predictions = frame_from_records(payload.get("predictions", []))
             if not predictions.empty:
-                recent = predictions.tail(12).sort_values("date", ascending=False).copy()
+                recent = (
+                    predictions.tail(12).sort_values("date", ascending=False).copy()
+                )
                 for col in [
                     "confidence",
                     "selected_forward_excess_return",
@@ -381,7 +415,9 @@ def render_history() -> None:
     if not RUN_HISTORY.exists():
         return
     st.subheader("Run History")
-    history = pd.read_csv(RUN_HISTORY).tail(20).sort_values("generated_at", ascending=False)
+    history = (
+        pd.read_csv(RUN_HISTORY).tail(20).sort_values("generated_at", ascending=False)
+    )
     for col in ["top_factor_probability", "cv_accuracy"]:
         if col in history:
             history[col] = history[col].map(pct)
