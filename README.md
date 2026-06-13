@@ -7,11 +7,13 @@ The project is designed as a long-term research platform for a daily market brie
 ## Current Capabilities
 
 - Public macro and market data ingestion with cache/fallback status reporting.
-- Factor ETF return construction for momentum, quality, value, low volatility, and small cap.
+- Factor return construction from Kenneth French academic factors and tradeable ETF proxies.
 - Credit Leadership Score from HY, IG, and CCC spread signals.
 - Regime classification and factor probability estimates.
-- Regime Stability Score and dynamic percentile-based risk monitoring.
+- Regime Stability Score, data-quality confidence adjustment, and regime-break risk monitoring.
 - Historical analog engine based on similar macro/credit environments.
+- Baseline model validation against previous-winner, factor momentum, logistic regression, decision tree, equal-weight factors, and SPY.
+- Canonical `run_result.json` schema used by the dashboard, brief writer, and future modules.
 - Reproducible run artifacts in JSON, CSV, and Markdown.
 - Streamlit dashboard for desktop and mobile browsers.
 
@@ -36,11 +38,9 @@ Primary and fallback sources currently include:
 - Yahoo Finance: ETF price history.
 - Local seed file: `data/ccc_oas_history.csv`.
 - Optional Trading Economics API: PMI and CCC history when `TRADING_ECONOMICS_API_KEY` is set.
+- Kenneth French Data Library: academic monthly factor portfolios used to extend research history before ETF proxy inception.
 
-Planned:
-
-- Kenneth French factor library for longer factor histories and validation.
-- Additional credit/loan proxies where public data quality is acceptable.
+Academic factor series are used for historical research, analogs, and validation. ETF proxies remain separately labeled as tradeable implementations for current exposure decisions and portfolio-facing work.
 
 ## How To Run
 
@@ -68,7 +68,7 @@ The dashboard reads:
 output/latest/run_result.json
 ```
 
-The dashboard includes a v0.5 validation section comparing model-selected factor exposure with equal-weight factor exposure and SPY over 1M, 3M, and 6M horizons. The daily brief intentionally remains concise and does not include the validation tables.
+The dashboard includes validation and data-health sections. The daily brief intentionally remains concise and does not include validation tables.
 
 ## Output Layout
 

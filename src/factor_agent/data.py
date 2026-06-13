@@ -47,6 +47,7 @@ class SourceStatus:
     cache_path: str | None = None
     error: str | None = None
     fetched_at: str | None = None
+    latest_observation: str | None = None
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -75,6 +76,15 @@ def _read_cached_series(path: Path, column: str) -> pd.DataFrame:
 def _write_cached_series(path: Path, frame: pd.DataFrame) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     frame.to_csv(path)
+
+
+def _latest_observation(frame: pd.DataFrame | pd.Series) -> str | None:
+    if frame.empty:
+        return None
+    index = frame.dropna(how="all").index if isinstance(frame, pd.DataFrame) else frame.dropna().index
+    if len(index) == 0:
+        return None
+    return pd.Timestamp(index.max()).strftime("%Y-%m-%d")
 
 
 def _years_between(start: str, end: str | None) -> range:
@@ -418,11 +428,11 @@ def get_fred(
         try:
             if path.exists() and not refresh:
                 s = _read_cached_series(path, ticker)
-                statuses.append(SourceStatus("fred", name, ticker, "cache", len(s), str(path)))
+                statuses.append(SourceStatus("fred", name, ticker, "cache", len(s), str(path), latest_observation=_latest_observation(s)))
             else:
                 s = _get_fred_series(ticker, start, end)
                 _write_cached_series(path, s)
-                statuses.append(SourceStatus("fred", name, ticker, "live", len(s), str(path), fetched_at=_now_utc()))
+                statuses.append(SourceStatus("fred", name, ticker, "live", len(s), str(path), fetched_at=_now_utc(), latest_observation=_latest_observation(s)))
             s.columns = [name]
             frames.append(s)
         except Exception as exc:
@@ -432,7 +442,7 @@ def get_fred(
                     source, alt = alternate
                     s = alt.rename(columns={name: ticker})
                     _write_cached_series(path, s)
-                    statuses.append(SourceStatus(source, name, ticker, "alternate", len(s), str(path), fetched_at=_now_utc()))
+                    statuses.append(SourceStatus(source, name, ticker, "alternate", len(s), str(path), fetched_at=_now_utc(), latest_observation=_latest_observation(s)))
                     s.columns = [name]
                     frames.append(s)
                     continue
@@ -446,7 +456,7 @@ def get_fred(
                     s = _read_cached_series(path, ticker)
                     s.columns = [name]
                     frames.append(s)
-                    statuses.append(SourceStatus("fred", name, ticker, "cache_after_error", len(s), str(path), f"{exc}{alt_error}"))
+                    statuses.append(SourceStatus("fred", name, ticker, "cache_after_error", len(s), str(path), f"{exc}{alt_error}", latest_observation=_latest_observation(s)))
                     continue
                 except Exception as cache_exc:
                     statuses.append(SourceStatus("fred", name, ticker, "failed", error=f"{exc}{alt_error}; cache error: {cache_exc}"))
@@ -489,7 +499,7 @@ def get_etf_prices(
             try:
                 if path.exists() and not refresh:
                     close = _read_cached_series(path, ticker)[ticker]
-                    statuses.append(SourceStatus("yahoo", ticker, ticker, "cache", len(close), str(path)))
+                    statuses.append(SourceStatus("yahoo", ticker, ticker, "cache", len(close), str(path), latest_observation=_latest_observation(close)))
                     frames.append(close.rename(ticker))
                     break
 
@@ -511,7 +521,7 @@ def get_etf_prices(
                     close = close[ticker]
                 close = close.rename(ticker)
                 _write_cached_series(path, close.to_frame())
-                statuses.append(SourceStatus("yahoo", ticker, ticker, "live", len(close), str(path), fetched_at=_now_utc()))
+                statuses.append(SourceStatus("yahoo", ticker, ticker, "live", len(close), str(path), fetched_at=_now_utc(), latest_observation=_latest_observation(close)))
                 frames.append(close)
                 break
             except Exception as exc:
@@ -523,7 +533,7 @@ def get_etf_prices(
                 try:
                     close = _read_cached_series(path, ticker)[ticker]
                     frames.append(close.rename(ticker))
-                    statuses.append(SourceStatus("yahoo", ticker, ticker, "cache_after_error", len(close), str(path), str(last_error)))
+                    statuses.append(SourceStatus("yahoo", ticker, ticker, "cache_after_error", len(close), str(path), str(last_error), latest_observation=_latest_observation(close)))
                 except Exception as cache_exc:
                     statuses.append(SourceStatus("yahoo", ticker, ticker, "failed", error=f"{last_error}; cache error: {cache_exc}"))
             else:

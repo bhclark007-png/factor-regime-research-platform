@@ -7,6 +7,8 @@
 - Yield-curve slope is calculated as 10Y minus 2Y.
 - Inflation momentum is calculated using annualized 3- and 6-month CPI changes.
 - Factor ETF returns are monthly returns minus SPY monthly returns.
+- Kenneth French academic factors are loaded as monthly decimal returns and mapped to the platform factor names where a close research analogue exists: SMB to small cap, HML to value, momentum to momentum, and an RMW/CMA quality composite to quality.
+- Academic factors extend research history before ETF proxy inception. ETF proxy returns override academic series once tradeable proxy data is available. Low-volatility history remains ETF-only because the Kenneth French library does not provide a direct low-volatility analogue in the current implementation.
 
 ## Backtesting
 
@@ -18,11 +20,17 @@ Primary forecast horizons:
 
 Current prototype uses a configurable horizon and writes summary metrics. Future work should store separate walk-forward prediction histories for each horizon.
 
-The v0.5 validation module runs expanding-window model validation across 1M, 3M, and 6M horizons. Each validation observation trains only on prior months, selects the highest-probability factor, and compares that selected factor's forward excess return with:
+The validation module runs expanding-window model validation across 1M, 3M, and 6M horizons. Each validation observation trains only on prior months, selects the highest-probability factor, and compares that selected factor's forward excess return with:
 
 - equal-weight factor exposure
 - SPY baseline, represented as zero factor excess return
+- naive previous-winner factor selection
+- six-month factor momentum
+- multinomial logistic regression
+- shallow interpretable decision tree
 - the realized best factor for confusion-matrix analysis
+
+Dashboard validation defaults to the most recent 120 monthly observations and samples validation points every three months to keep daily runs practical. Longer research-window validation can be run as a separate research job when model changes warrant it.
 
 Tracked metrics:
 
@@ -41,6 +49,14 @@ Tracked metrics:
 - Report source coverage and missing-feed status with every run.
 - Compare model results against simple baselines.
 - Track whether improvements persist out of sample and after transaction-cost assumptions.
+- Report whether the current Random Forest model adds value over simple baselines before treating model-selected leadership as useful.
+
+## Regime-Break Risk Framework
+
+- Historical regime breaks are defined using changes in realized factor leadership, stress indicators, and model regime labels where available.
+- For each active regime, monitored indicators are ranked by how often they appeared before historical breaks.
+- Each risk reports historical frequency before transitions, current distance-to-risk, severity percentile, and confidence.
+- Percentile-only monitoring is retained as context, but regime-break frequency is the preferred interpretability layer.
 
 ## Recalibration Process
 

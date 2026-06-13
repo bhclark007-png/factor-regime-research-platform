@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.0 - Historical Validity And Robustness
+
+- Added Kenneth French factor ingestion to extend academic factor history before ETF proxy inception.
+- Preserved tradeable ETF proxies separately from academic factor portfolios and exposed factor provenance in outputs.
+- Added regime-break risk monitoring based on historical transitions, severity percentiles, distance-to-risk, and confidence.
+- Added simple validation baselines: previous winner, factor momentum, logistic regression, interpretable decision tree, equal-weight factors, and SPY.
+- Added a canonical `RunResult` schema contract and lightweight schema validation test.
+- Added data-quality gates that reduce confidence and mark runs as data impaired when critical series fail or go stale.
+- Kept validation, diagnostics, and data-health detail in the dashboard while preserving the daily brief's concise format.
+
 ## 0.5.0 - Validation Framework
 
 - Added multi-horizon walk-forward validation for 1M, 3M, and 6M factor leadership.

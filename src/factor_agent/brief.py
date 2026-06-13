@@ -21,6 +21,7 @@ def make_daily_brief(
     dynamic_risks: dict | None,
     regime: str,
     analogs: dict | None,
+    data_quality: dict | None,
     feature_importances: pd.Series,
 ) -> str:
     top_factor = probabilities.index[0] if len(probabilities) else "unknown"
@@ -38,6 +39,8 @@ def make_daily_brief(
     lines.append(f"**Credit Leadership Score:** {credit_score}/100")
     lines.append(f"**Regime Stability Score:** {stability_score}/100")
     lines.append(f"**Backtest cross-validation hit rate:** {_fmt_pct(cv_accuracy)}")
+    if data_quality and data_quality.get("data_impaired"):
+        lines.append("**Data quality:** impaired; confidence reduced.")
     lines.append("")
     lines.append("## Factor Probabilities")
     lines.append("")

@@ -13,7 +13,10 @@ sys.path.insert(0, str(ROOT / "src"))
 from factor_agent.analog import find_historical_analogs
 from factor_agent.backtest import factor_backtest_metrics, validate_factor_model
 from factor_agent.features import build_factor_excess_returns, forward_factor_winner
-from factor_agent.risk import dynamic_regime_risks
+from factor_agent.french import combine_academic_and_tradeable_factors
+from factor_agent.quality import evaluate_data_quality
+from factor_agent.risk import dynamic_regime_risks, regime_break_risk_monitor
+from factor_agent.schema import validate_run_result
 from factor_agent.scores import credit_leadership_score, regime_label, regime_stability_score
 
 
@@ -82,8 +85,11 @@ class EngineContractTests(unittest.TestCase):
         )
         analogs = find_historical_analogs(features, forward, n=3)
         risks = dynamic_regime_risks(features)
+        break_winner = pd.Series((["value", "value", "quality", "quality"] * 13)[:50], index=index)
+        break_risks = regime_break_risk_monitor(features, break_winner, "test")
         self.assertIn("analogs", analogs)
         self.assertIn("risks", risks)
+        self.assertIn("top_regime_change_risks", break_risks)
 
     def test_backtest_metrics_contract(self) -> None:
         index = pd.date_range("2023-01-31", periods=6, freq="ME")
@@ -113,9 +119,51 @@ class EngineContractTests(unittest.TestCase):
             index=index,
         )
         validation = validate_factor_model(features, factor_excess, horizons=(1, 3), min_train_months=36)
-        self.assertEqual(validation["version"], "0.5")
+        self.assertEqual(validation["version"], "0.6")
+        self.assertIn("validation_window", validation)
         self.assertIn("1", validation["by_horizon"])
         self.assertIn("confusion_matrix", validation["by_horizon"]["1"])
+        self.assertIn("baselines", validation["by_horizon"]["1"])
+
+    def test_factor_history_provenance(self) -> None:
+        academic_index = pd.date_range("2000-01-31", periods=3, freq="ME")
+        tradeable_index = pd.date_range("2000-03-31", periods=2, freq="ME")
+        academic = pd.DataFrame({"value": [0.01, 0.02, 0.03]}, index=academic_index)
+        tradeable = pd.DataFrame({"value": [0.04, 0.05]}, index=tradeable_index)
+        combined, provenance = combine_academic_and_tradeable_factors(academic, tradeable)
+        self.assertEqual(combined.loc[pd.Timestamp("2000-01-31"), "value"], 0.01)
+        self.assertEqual(combined.loc[pd.Timestamp("2000-03-31"), "value"], 0.04)
+        self.assertEqual(provenance["value"]["pre_tradeable_source"], "kenneth_french")
+
+    def test_data_quality_gate(self) -> None:
+        statuses = [
+            {"name": "hy_oas", "ticker": "BAMLH0A0HYM2", "status": "failed", "latest_observation": None},
+            {"name": "SPY", "ticker": "SPY", "status": "live", "latest_observation": "2026-06-12"},
+        ]
+        quality = evaluate_data_quality(statuses, as_of="2026-06-13")
+        self.assertTrue(quality["data_impaired"])
+        self.assertLess(quality["confidence_multiplier"], 1.0)
+
+    def test_run_result_schema_validation(self) -> None:
+        payload = {
+            "schema_version": "0.6",
+            "run_id": "test",
+            "generated_at": "2026-06-13T12:00:00",
+            "parameters": {},
+            "regime": {
+                "label": "Mixed",
+                "top_factor": "value",
+                "top_factor_probability": 0.4,
+                "adjusted_confidence": 0.3,
+            },
+            "factor_probabilities": [],
+            "data_status": {},
+            "data_quality": {"data_impaired": False},
+            "factor_history": {},
+            "validation": {},
+            "artifacts": {},
+        }
+        validate_run_result(payload)
 
 
 if __name__ == "__main__":

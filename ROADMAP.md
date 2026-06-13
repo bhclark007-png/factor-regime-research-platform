@@ -2,17 +2,18 @@
 
 ## Phase 1: Core Data And Brief
 
-- Data ingestion from FRED, Yahoo Finance, Treasury, Cboe, BLS, local seed files, and optional vendor APIs.
-- Factor scoring for momentum, quality, value, low volatility, and small cap.
-- Daily brief generation in Markdown and JSON-backed dashboard format.
-- Reproducible run history and output artifacts.
+- Completed: data ingestion from FRED, Yahoo Finance, Treasury, Cboe, BLS, Kenneth French, local seed files, and optional vendor APIs.
+- Completed: factor scoring for momentum, quality, value, low volatility, and small cap.
+- Completed: daily brief generation in Markdown and JSON-backed dashboard format.
+- Completed: reproducible run history, data-quality gates, and canonical output artifacts.
 
 ## Phase 2: Regime Research Platform
 
-- Credit Leadership Score from HY OAS, IG OAS, CCC spreads, and loan proxies where available.
-- Historical analog engine for similar macro and credit environments.
-- Regime Stability Score and dynamic regime-transition monitoring.
-- Better validation of regime labels and factor forecast horizons.
+- Completed: Credit Leadership Score from HY OAS, IG OAS, CCC spreads, and loan proxies where available.
+- Completed: historical analog engine for similar macro and credit environments.
+- Completed: Regime Stability Score and regime-break transition monitoring.
+- Completed: dashboard-only validation of factor forecast horizons against simple baselines.
+- Next: deeper transition-label validation and loan-market proxy review.
 
 ## Phase 3: Portfolio Tracking
 

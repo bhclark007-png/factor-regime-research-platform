@@ -177,7 +177,7 @@ def render_metrics(result: dict) -> None:
     regime = result["regime"]
     cols = st.columns(5)
     cols[0].metric("Current regime", regime["label"])
-    cols[1].metric("Top factor", regime["top_factor"], pct(regime["top_factor_probability"]))
+    cols[1].metric("Top factor", regime["top_factor"], pct(regime.get("adjusted_confidence", regime["top_factor_probability"])))
     cols[2].metric("Credit leadership", score(regime["credit_leadership_score"]))
     cols[3].metric("Regime stability", score(regime["regime_stability_score"]))
     cols[4].metric("CV hit rate", pct(regime["cv_accuracy"]))
@@ -265,7 +265,8 @@ def render_validation(result: dict) -> None:
     if not validation:
         return
 
-    st.subheader("v0.5 Validation")
+    version = validation.get("version", "current")
+    st.subheader(f"v{version} Validation")
     st.caption(validation.get("objective", "Model validation"))
 
     summary = frame_from_records(validation.get("summary", []))
@@ -294,6 +295,30 @@ def render_validation(result: dict) -> None:
     tabs = st.tabs([f"{h}M" for h in horizons.keys()])
     for tab_item, (horizon, payload) in zip(tabs, horizons.items()):
         with tab_item:
+            baselines = payload.get("baselines", {})
+            if baselines:
+                baseline_rows = []
+                for name, values in baselines.items():
+                    row = {"baseline": name, **values}
+                    baseline_rows.append(row)
+                baseline_df = pd.DataFrame(baseline_rows)
+                for col in ["hit_rate", "avg_forward_excess_return", "max_drawdown", "turnover_proxy"]:
+                    if col in baseline_df:
+                        baseline_df[col] = baseline_df[col].map(lambda x: "n/a" if pd.isna(x) else pct(x))
+                for col in ["information_ratio"]:
+                    if col in baseline_df:
+                        baseline_df[col] = baseline_df[col].map(lambda x: "n/a" if pd.isna(x) else f"{float(x):.2f}")
+                st.markdown("Baseline comparison")
+                st.dataframe(baseline_df, hide_index=True, use_container_width=True)
+
+            value_add = frame_from_records(payload.get("model_value_add", []))
+            if not value_add.empty:
+                value_add["model_excess_return_advantage"] = value_add["model_excess_return_advantage"].map(
+                    lambda x: "n/a" if pd.isna(x) else pct(x)
+                )
+                st.markdown("Model value-add versus baselines")
+                st.dataframe(value_add, hide_index=True, use_container_width=True)
+
             cm = frame_from_records(payload.get("confusion_matrix", []))
             if cm.empty:
                 st.info("No confusion matrix available for this horizon.")
@@ -319,16 +344,37 @@ def render_validation(result: dict) -> None:
 def render_source_health(result: dict) -> None:
     st.subheader("Data Source Health")
     data_status = result.get("data_status", {})
+    quality = result.get("data_quality", {})
     cols = st.columns(3)
     cols[0].metric("Sources", data_status.get("sources_total", 0))
     cols[1].metric("Successful", data_status.get("sources_successful", 0))
     cols[2].metric("Failed", data_status.get("sources_failed", 0))
+    if quality:
+        st.info(
+            f"{quality.get('summary', 'Data quality status unavailable')} "
+            f"Confidence multiplier: {quality.get('confidence_multiplier', 1.0):.0%}"
+        )
+        issues = frame_from_records(quality.get("issues", []))
+        if not issues.empty:
+            st.dataframe(issues, hide_index=True, use_container_width=True)
 
     health = source_health_frame(result)
     if health.empty:
         st.info("No source status records available.")
     else:
         st.dataframe(health, hide_index=True, use_container_width=True)
+
+
+def render_factor_history(result: dict) -> None:
+    st.subheader("Factor History Provenance")
+    history = result.get("factor_history", {})
+    provenance = history.get("provenance_by_factor", {})
+    if provenance:
+        rows = [{"factor": factor, **details} for factor, details in provenance.items()]
+        st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
+    metadata = history.get("academic_factor_metadata", {})
+    if metadata:
+        st.caption(metadata.get("description", "Academic factor metadata available."))
 
 
 def render_history() -> None:
@@ -384,6 +430,8 @@ def main() -> None:
     render_analogs(result)
     st.markdown('<div class="section"></div>', unsafe_allow_html=True)
     render_validation(result)
+    st.markdown('<div class="section"></div>', unsafe_allow_html=True)
+    render_factor_history(result)
     st.markdown('<div class="section"></div>', unsafe_allow_html=True)
     render_source_health(result)
     st.markdown('<div class="section"></div>', unsafe_allow_html=True)
