@@ -9,6 +9,9 @@
 - Factor ETF returns are monthly returns minus SPY monthly returns.
 - Kenneth French academic factors are loaded as monthly decimal returns and mapped to the platform factor names where a close research analogue exists: SMB to small cap, HML to value, momentum to momentum, and an RMW/CMA quality composite to quality.
 - Academic factors extend research history before ETF proxy inception. ETF proxy returns override academic series once tradeable proxy data is available. Low-volatility history remains ETF-only because the Kenneth French library does not provide a direct low-volatility analogue in the current implementation.
+- `tradeable` mode is the default daily implementation and uses ETF proxies.
+- `academic` mode uses Kenneth French factor series for longer historical validation.
+- `combined` mode uses Kenneth French history before ETF proxy availability and ETF proxies once available.
 
 ## Backtesting
 
@@ -56,7 +59,7 @@ Tracked metrics:
 - Historical regime breaks are defined using changes in realized factor leadership, stress indicators, and model regime labels where available.
 - For each active regime, monitored indicators are ranked by how often they appeared before historical breaks.
 - Each risk reports historical frequency before transitions, current distance-to-risk, severity percentile, and confidence.
-- Percentile-only monitoring is retained as context, but regime-break frequency is the preferred interpretability layer.
+- Percentile-only monitoring is retained separately as `stress_percentile_monitoring` context, but regime-break frequency is the preferred interpretability layer under `historical_regime_break_monitoring`.
 
 ## Recalibration Process
 

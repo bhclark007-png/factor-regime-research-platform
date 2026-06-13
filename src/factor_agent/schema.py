@@ -69,3 +69,19 @@ def validate_run_result(payload: dict[str, Any]) -> None:
         raise ValueError("RunResult.factor_probabilities must be a list")
     if not isinstance(payload["data_quality"].get("data_impaired"), bool):
         raise ValueError("RunResult.data_quality.data_impaired must be a bool")
+    if payload["schema_version"] != "0.6":
+        raise ValueError("RunResult.schema_version must be 0.6")
+    if payload.get("validation", {}).get("version") != "0.6":
+        raise ValueError("RunResult.validation.version must be 0.6")
+
+    factor_history = payload["factor_history"]
+    if factor_history.get("selected_mode") not in {"academic", "tradeable", "combined"}:
+        raise ValueError("RunResult.factor_history.selected_mode must be academic, tradeable, or combined")
+
+    dynamic_risks = payload.get("dynamic_risks", {})
+    if dynamic_risks and dynamic_risks.get("method") != "stress_percentile_monitoring":
+        raise ValueError("RunResult.dynamic_risks.method must describe stress-percentile monitoring")
+
+    break_risks = payload.get("regime_break_risks", {})
+    if break_risks and break_risks.get("method") != "historical_regime_break_monitoring":
+        raise ValueError("RunResult.regime_break_risks.method must describe historical regime-break monitoring")

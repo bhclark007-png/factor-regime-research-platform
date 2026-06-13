@@ -9,6 +9,7 @@
 - Added a canonical `RunResult` schema contract and lightweight schema validation test.
 - Added data-quality gates that reduce confidence and mark runs as data impaired when critical series fail or go stale.
 - Kept validation, diagnostics, and data-health detail in the dashboard while preserving the daily brief's concise format.
+- Stabilized v0.6 contracts by wiring `RunResult` construction into the agent, adding explicit factor-source modes, and labeling stress-percentile versus regime-break risk outputs.
 
 ## 0.5.0 - Validation Framework
 

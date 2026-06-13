@@ -40,7 +40,11 @@ Primary and fallback sources currently include:
 - Optional Trading Economics API: PMI and CCC history when `TRADING_ECONOMICS_API_KEY` is set.
 - Kenneth French Data Library: academic monthly factor portfolios used to extend research history before ETF proxy inception.
 
-Academic factor series are used for historical research, analogs, and validation. ETF proxies remain separately labeled as tradeable implementations for current exposure decisions and portfolio-facing work.
+Factor source modes are explicit:
+
+- `tradeable` is the default and uses ETF proxies for current implementation.
+- `academic` uses Kenneth French factors for longer historical validation and research.
+- `combined` uses academic history before ETF proxy availability and ETF proxies after they become available.
 
 ## How To Run
 
@@ -48,6 +52,12 @@ Run the backend:
 
 ```powershell
 python run_agent.py
+```
+
+Run with academic factor histories:
+
+```powershell
+python run_agent.py --factor-source academic
 ```
 
 Force fresh data:

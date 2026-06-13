@@ -18,7 +18,10 @@ from .analog import find_historical_analogs
 from .backtest import factor_backtest_metrics, validate_factor_model
 from .quality import evaluate_data_quality
 from .risk import dynamic_regime_risks, regime_break_risk_monitor
-from .schema import validate_run_result
+from .schema import RegimeResult, RunResult, validate_run_result
+
+
+FACTOR_SOURCE_MODES = {"academic", "tradeable", "combined"}
 
 
 def _timestamp_id() -> str:
@@ -55,6 +58,36 @@ def _append_run_history(path: Path, summary: dict) -> None:
     history.to_csv(path, index=False)
 
 
+def _select_factor_returns(
+    factor_source: str,
+    academic_factor_excess: pd.DataFrame,
+    tradeable_factor_excess: pd.DataFrame,
+) -> tuple[pd.DataFrame, dict]:
+    """Select the factor-return source used by the model and validation."""
+    if factor_source not in FACTOR_SOURCE_MODES:
+        raise ValueError(f"factor_source must be one of {sorted(FACTOR_SOURCE_MODES)}")
+
+    combined, provenance = combine_academic_and_tradeable_factors(
+        academic_factor_excess,
+        tradeable_factor_excess,
+    )
+    if factor_source == "academic":
+        selected = academic_factor_excess
+        model_series = "kenneth_french_academic"
+    elif factor_source == "tradeable":
+        selected = tradeable_factor_excess
+        model_series = "tradeable_etf_proxy"
+    else:
+        selected = combined
+        model_series = "combined_academic_then_tradeable"
+
+    return selected.dropna(how="all"), {
+        "selected_mode": factor_source,
+        "model_series": model_series,
+        "provenance_by_factor": provenance,
+    }
+
+
 def run(
     start: str,
     end: str | None,
@@ -62,7 +95,11 @@ def run(
     output_dir: str,
     refresh_data: bool = False,
     run_id: str | None = None,
+    factor_source: str = "tradeable",
 ) -> dict:
+    if factor_source not in FACTOR_SOURCE_MODES:
+        raise ValueError(f"factor_source must be one of {sorted(FACTOR_SOURCE_MODES)}")
+
     root = Path(output_dir)
     run_id = run_id or _timestamp_id()
     run_dir = root / "runs" / run_id
@@ -95,7 +132,8 @@ def run(
     tradeable_factor_excess = build_factor_excess_returns(prices)
     print("Loading Kenneth French academic factor history...")
     french_history = get_kenneth_french_factors(start=start, end=end, cache_dir=cache_dir, refresh=refresh_data)
-    factor_excess, factor_provenance = combine_academic_and_tradeable_factors(
+    factor_excess, factor_history_selection = _select_factor_returns(
+        factor_source,
         french_history.returns,
         tradeable_factor_excess,
     )
@@ -151,59 +189,59 @@ def run(
     )
     (run_dir / "daily_brief.md").write_text(brief, encoding="utf-8")
 
-    payload = {
-        "schema_version": "0.6",
-        "run_id": run_id,
-        "generated_at": datetime.now().isoformat(timespec="seconds"),
-        "parameters": {
+    run_result = RunResult(
+        run_id=run_id,
+        generated_at=datetime.now().isoformat(timespec="seconds"),
+        parameters={
             "start": start,
             "end": end,
             "horizon_months": horizon,
             "refresh_data": refresh_data,
+            "factor_source": factor_source,
         },
-        "regime": {
-            "label": regime,
-            "top_factor": str(result["latest_probabilities"].index[0]),
-            "top_factor_probability": float(result["latest_probabilities"].iloc[0]),
-            "adjusted_confidence": adjusted_confidence,
-            "credit_leadership_score": int(credit_score),
-            "regime_stability_score": int(stability_score),
-            "cv_accuracy": float(result["cv_accuracy"]),
-        },
-        "factor_probabilities": _series_to_records(result["latest_probabilities"], "probability"),
-        "credit_drivers": credit_drivers,
-        "risks": risks,
-        "dynamic_risks": dynamic_risks,
-        "regime_break_risks": regime_break_risks,
-        "historical_analogs": analogs,
-        "feature_importances": _series_to_records(result["feature_importances"].head(25), "importance"),
-        "backtest_summary": backtest_summary.to_dict(orient="records"),
-        "backtest_metrics": backtest_metrics,
-        "validation": validation,
-        "factor_history": {
-            "model_series": "combined_academic_and_tradeable",
+        regime=RegimeResult(
+            label=regime,
+            top_factor=str(result["latest_probabilities"].index[0]),
+            top_factor_probability=float(result["latest_probabilities"].iloc[0]),
+            adjusted_confidence=adjusted_confidence,
+            credit_leadership_score=int(credit_score),
+            regime_stability_score=int(stability_score),
+            cv_accuracy=float(result["cv_accuracy"]),
+        ),
+        factor_probabilities=_series_to_records(result["latest_probabilities"], "probability"),
+        credit_drivers=credit_drivers,
+        risks=risks,
+        dynamic_risks=dynamic_risks,
+        regime_break_risks=regime_break_risks,
+        historical_analogs=analogs,
+        feature_importances=_series_to_records(result["feature_importances"].head(25), "importance"),
+        backtest_summary=backtest_summary.to_dict(orient="records"),
+        backtest_metrics=backtest_metrics,
+        validation=validation,
+        factor_history={
+            **factor_history_selection,
             "academic_factor_metadata": french_history.metadata,
             "tradeable_proxy_metadata": {
                 "source_type": "tradeable_etf_proxy",
                 "tradeable": True,
                 "available_factors": list(tradeable_factor_excess.columns),
             },
-            "provenance_by_factor": factor_provenance,
         },
-        "data_quality": data_quality,
-        "data_status": {
+        data_quality=data_quality,
+        data_status={
             "sources_total": len(source_statuses),
             "sources_successful": len(successful_sources),
             "sources_failed": len(failed_sources),
             "sources": source_statuses,
         },
-        "artifacts": {
+        artifacts={
             "run_dir": str(run_dir),
             "latest_dir": str(latest_dir),
             "daily_brief": str(run_dir / "daily_brief.md"),
             "json": str(run_dir / "run_result.json"),
         },
-    }
+    )
+    payload = run_result.to_dict()
     validate_run_result(payload)
 
     _write_json(run_dir / "run_result.json", payload)
@@ -250,5 +288,19 @@ def main():
     parser.add_argument("--output", default="output", help="Output folder")
     parser.add_argument("--refresh-data", action="store_true", help="Force fresh FRED/Yahoo downloads instead of using cache")
     parser.add_argument("--run-id", default=None, help="Optional run identifier for reproducible artifact paths")
+    parser.add_argument(
+        "--factor-source",
+        choices=sorted(FACTOR_SOURCE_MODES),
+        default="tradeable",
+        help="Factor return source: tradeable ETF proxies, Kenneth French academic factors, or combined history.",
+    )
     args = parser.parse_args()
-    run(args.start, args.end, args.horizon, args.output, refresh_data=args.refresh_data, run_id=args.run_id)
+    run(
+        args.start,
+        args.end,
+        args.horizon,
+        args.output,
+        refresh_data=args.refresh_data,
+        run_id=args.run_id,
+        factor_source=args.factor_source,
+    )

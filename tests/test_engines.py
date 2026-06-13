@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 import sys
+import tempfile
 import unittest
+from unittest.mock import patch
 
 import pandas as pd
 
@@ -12,8 +14,11 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from factor_agent.analog import find_historical_analogs
 from factor_agent.backtest import factor_backtest_metrics, validate_factor_model
+from factor_agent.agent import _select_factor_returns, run
+from factor_agent.brief import make_daily_brief
+from factor_agent.data import SourceStatus
 from factor_agent.features import build_factor_excess_returns, forward_factor_winner
-from factor_agent.french import combine_academic_and_tradeable_factors
+from factor_agent.french import FactorHistory, combine_academic_and_tradeable_factors
 from factor_agent.quality import evaluate_data_quality
 from factor_agent.risk import dynamic_regime_risks, regime_break_risk_monitor
 from factor_agent.schema import validate_run_result
@@ -160,10 +165,135 @@ class EngineContractTests(unittest.TestCase):
             "data_status": {},
             "data_quality": {"data_impaired": False},
             "factor_history": {},
-            "validation": {},
+            "factor_history": {"selected_mode": "tradeable"},
+            "validation": {"version": "0.6"},
+            "dynamic_risks": {"method": "stress_percentile_monitoring"},
+            "regime_break_risks": {"method": "historical_regime_break_monitoring"},
             "artifacts": {},
         }
         validate_run_result(payload)
+
+    def test_daily_brief_generation_accepts_data_quality(self) -> None:
+        probabilities = pd.Series({"value": 0.5, "quality": 0.3, "momentum": 0.2})
+        brief = make_daily_brief(
+            probabilities=probabilities,
+            cv_accuracy=0.4,
+            credit_score=60,
+            credit_drivers=["HY spreads are contained."],
+            stability_score=70,
+            risks=[],
+            dynamic_risks={"transition_probability": None, "risks": []},
+            regime="Risk-On Expansion",
+            analogs={"analogs": []},
+            data_quality={"data_impaired": False},
+            feature_importances=pd.Series({"hy_oas": 0.2}),
+        )
+        self.assertIn("Daily Factor Regime Brief", brief)
+
+    def test_factor_source_mode_selection(self) -> None:
+        index = pd.date_range("2020-01-31", periods=4, freq="ME")
+        academic = pd.DataFrame({"value": [0.01, 0.02, 0.03, 0.04]}, index=index)
+        tradeable = pd.DataFrame({"value": [0.10, 0.20]}, index=index[-2:])
+
+        academic_selected, academic_meta = _select_factor_returns("academic", academic, tradeable)
+        tradeable_selected, tradeable_meta = _select_factor_returns("tradeable", academic, tradeable)
+        combined_selected, combined_meta = _select_factor_returns("combined", academic, tradeable)
+
+        self.assertEqual(academic_meta["selected_mode"], "academic")
+        self.assertEqual(tradeable_meta["selected_mode"], "tradeable")
+        self.assertEqual(combined_meta["selected_mode"], "combined")
+        self.assertEqual(len(academic_selected), 4)
+        self.assertEqual(len(tradeable_selected), 2)
+        self.assertEqual(combined_selected.loc[index[-1], "value"], 0.20)
+
+    def test_risk_outputs_are_self_describing(self) -> None:
+        index = pd.date_range("2015-01-31", periods=96, freq="ME")
+        features = pd.DataFrame(
+            {
+                "hy_oas_3m_chg": [i % 20 for i in range(96)],
+                "vix_1m_chg": [i % 15 for i in range(96)],
+                "ccc_minus_hy_3m_chg": [i % 10 for i in range(96)],
+                "ism_3m_chg": [10 - (i % 12) for i in range(96)],
+            },
+            index=index,
+        )
+        winner = pd.Series((["value"] * 6 + ["quality"] * 6) * 8, index=index)
+        stress = dynamic_regime_risks(features)
+        breaks = regime_break_risk_monitor(features, winner, "test")
+
+        self.assertEqual(stress["method"], "stress_percentile_monitoring")
+        self.assertEqual(breaks["method"], "historical_regime_break_monitoring")
+        self.assertIn("defined_break_count", breaks)
+        for risk in breaks["top_regime_change_risks"]:
+            self.assertIn("historical_frequency_before_transitions", risk)
+            self.assertIn("severity_percentile", risk)
+
+    def test_run_agent_completes_and_emits_valid_schema(self) -> None:
+        index = pd.date_range("2018-01-31", periods=72, freq="ME")
+        features = pd.DataFrame(
+            {
+                "hy_oas": [300 + i for i in range(72)],
+                "hy_oas_3m_chg": [i % 10 for i in range(72)],
+                "ccc_minus_hy_3m_chg": [i % 7 for i in range(72)],
+                "vix": [15 + (i % 5) for i in range(72)],
+                "vix_1m_chg": [i % 4 for i in range(72)],
+                "ism_mfg": [50 + (i % 3) for i in range(72)],
+                "ism_3m_chg": [2 - (i % 4) for i in range(72)],
+                "cpi_3m_ann": [2.0 + (i % 4) * 0.1 for i in range(72)],
+                "curve_2s10s_3m_chg": [0.1 * (i % 5) for i in range(72)],
+            },
+            index=index,
+        )
+        prices = pd.DataFrame(
+            {
+                "SPY": [100 + i for i in range(72)],
+                "MTUM": [100 + i * 1.2 for i in range(72)],
+                "QUAL": [100 + i * 1.1 for i in range(72)],
+                "VLUE": [100 + i * 1.3 for i in range(72)],
+                "USMV": [100 + i * 0.9 for i in range(72)],
+                "IWM": [100 + i * 1.05 for i in range(72)],
+            },
+            index=index,
+        )
+        academic = pd.DataFrame(
+            {
+                "value": [0.01 if i % 2 else -0.002 for i in range(72)],
+                "quality": [0.006 for _ in range(72)],
+                "momentum": [0.004 for _ in range(72)],
+                "small_cap": [0.003 for _ in range(72)],
+            },
+            index=index,
+        )
+        statuses = [SourceStatus("test", "SPY", "SPY", "live", rows=72, latest_observation="2026-06-01")]
+        train_result = {
+            "X": features,
+            "y": pd.Series(["value", "quality", "momentum"] * 24, index=index, name="winner"),
+            "cv_accuracy": 0.4,
+            "latest_probabilities": pd.Series({"value": 0.45, "quality": 0.35, "momentum": 0.20}),
+            "feature_importances": pd.Series({"hy_oas": 0.3, "vix": 0.2}),
+        }
+
+        with tempfile.TemporaryDirectory() as tmp:
+            with (
+                patch("factor_agent.agent.get_fred", return_value=(features, statuses)),
+                patch("factor_agent.agent.get_etf_prices", return_value=(prices, statuses)),
+                patch(
+                    "factor_agent.agent.get_kenneth_french_factors",
+                    return_value=FactorHistory(
+                        academic,
+                        {"source_type": "academic_factor_portfolio", "available_factors": list(academic.columns)},
+                        [{"source": "kenneth_french", "name": "ff5", "ticker": "ff5", "status": "cache", "rows": 72}],
+                    ),
+                ),
+                patch("factor_agent.agent.train_factor_model", return_value=train_result),
+                patch("factor_agent.agent.validate_factor_model", return_value={"version": "0.6", "by_horizon": {}, "summary": []}),
+            ):
+                payload = run("2018-01-01", None, 3, tmp, run_id="unit_run", factor_source="tradeable")
+
+            validate_run_result(payload)
+            self.assertEqual(payload["factor_history"]["selected_mode"], "tradeable")
+            self.assertTrue((Path(tmp) / "latest" / "run_result.json").exists())
+            self.assertTrue((Path(tmp) / "latest" / "daily_brief.md").exists())
 
 
 if __name__ == "__main__":

@@ -62,6 +62,8 @@ def dynamic_regime_risks(features: pd.DataFrame, top_n: int = 5) -> dict:
         )
 
     return {
+        "method": "stress_percentile_monitoring",
+        "description": "Ranks current indicator stress versus each indicator's own history; this is not a historical transition-frequency model.",
         "transition_probability": transition_probability,
         "risks": risks,
     }
@@ -190,6 +192,8 @@ def regime_break_risk_monitor(
         )
 
     return {
+        "method": "historical_regime_break_monitoring",
+        "description": "Defines breaks from realized factor-leadership changes after sustained streaks, filtered by elevated credit/volatility stress when available.",
         "active_regime": active_regime,
         "defined_break_count": int(len(breaks)),
         "transition_probability": transition_probability,

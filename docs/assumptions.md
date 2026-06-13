@@ -17,6 +17,7 @@
 - Kenneth French factors are academic long-short or portfolio factor series. They improve historical research coverage but are not treated as directly tradeable products.
 - ETF factor proxies are the preferred tradeable series for current exposure and future portfolio modules.
 - When both academic and ETF factor data exist for the same month, ETF proxy returns take precedence in the combined factor history.
+- Daily runs default to `tradeable` factor-source mode unless `--factor-source academic` or `--factor-source combined` is explicitly selected.
 - Critical source failures or stale critical observations reduce model confidence. If any critical source fails or too many critical series are stale, the run is marked data impaired.
 
 ## Scores
