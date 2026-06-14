@@ -498,7 +498,8 @@ def _get_fred_series(
             last_error = exc
             if attempt < retries:
                 time.sleep(2 * attempt)
-    raise RuntimeError(str(last_error))
+    message = f"FRED fetch failed for {ticker}. Last error: {last_error}"
+    raise RuntimeError(message)
 
 
 def get_fred(
