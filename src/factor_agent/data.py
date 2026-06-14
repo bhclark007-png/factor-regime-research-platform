@@ -10,6 +10,7 @@ import xml.etree.ElementTree as ET
 
 import pandas as pd
 import requests
+
 try:
     import yfinance as yf
     from yfinance import cache as yf_cache
