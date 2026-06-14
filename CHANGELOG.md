@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.6.1 - Quality And Test Hardening
+## v0.6.1 - Quality And Test Hardening
 
 - Reformatted Python with Black and Ruff for readable GitHub diffs.
 - Added fixture-backed pytest coverage for the CLI entrypoint, schema validation,

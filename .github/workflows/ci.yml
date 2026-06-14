@@ -2,7 +2,8 @@ name: CI
 
 on:
   push:
-    branches: ["main"]
+    branches:
+      - main
   pull_request:
 
 jobs:
@@ -24,10 +25,10 @@ jobs:
           python -m pip install -r requirements.txt
 
       - name: Run Ruff
-        run: python -m ruff check src tests dashboard.py run_agent.py
+        run: python -m ruff check .
 
       - name: Run Black check
-        run: python -m black --check src tests dashboard.py run_agent.py
+        run: python -m black --check .
 
       - name: Run tests
         run: python -m pytest
