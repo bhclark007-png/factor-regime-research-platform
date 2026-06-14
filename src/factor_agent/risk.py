@@ -1,3 +1,5 @@
+"""Regime-risk and transition-monitoring diagnostics."""
+
 from __future__ import annotations
 
 import pandas as pd

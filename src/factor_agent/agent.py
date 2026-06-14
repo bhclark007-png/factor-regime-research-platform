@@ -1,3 +1,5 @@
+"""Command-line orchestration for the factor-regime research agent."""
+
 from __future__ import annotations
 
 import argparse

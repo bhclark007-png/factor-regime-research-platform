@@ -1,3 +1,5 @@
+"""Validation and baseline comparisons for factor leadership models."""
+
 from __future__ import annotations
 
 import pandas as pd
