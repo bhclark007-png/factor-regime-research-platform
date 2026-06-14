@@ -19,7 +19,10 @@ VIX_HISTORY_URL = (
     "https://cdn.cboe.com/api/global/us_indices/daily_prices/VIX_History.csv"
 )
 BLS_API_URL = "https://api.bls.gov/publicAPI/v2/timeseries/data/"
-TRADING_ECONOMICS_HISTORICAL_URL = "https://api.tradingeconomics.com/historical/country/united states/indicator/ism manufacturing pmi"
+TRADING_ECONOMICS_HISTORICAL_URL = (
+    "https://api.tradingeconomics.com/historical/country/"
+    "united states/indicator/ism manufacturing pmi"
+)
 TRADING_ECONOMICS_CCC_INDICATORS = [
     "bofa merrill lynch us high yield ccc or below option adjusted spread",
     "ice bofa ccc lower us high yield index option-adjusted spread",
@@ -355,10 +358,12 @@ def _fetch_ccc_oas_series(ticker: str, start: str, end: str | None) -> pd.Series
         latest.attrs["source"] = "fred_recent"
         return _filter_date_range(latest.to_frame("value"), start, end)["value"]
 
-    raise RuntimeError(
-        "No CCC OAS seed data available. Add data/ccc_oas_history.csv or set "
-        f"TRADING_ECONOMICS_API_KEY. Latest FRED error: {latest_error}"
+    message = (
+        "No CCC OAS seed data available. "
+        "Add data/ccc_oas_history.csv or set TRADING_ECONOMICS_API_KEY. "
+        f"Latest FRED error: {latest_error}"
     )
+    raise RuntimeError(message)
 
 
 def _fetch_manufacturing_growth_proxy(
