@@ -6,7 +6,32 @@ import sys
 from pathlib import Path
 
 import pandas as pd
-import streamlit as st
+try:
+    import streamlit as st
+except ModuleNotFoundError:  # allows tests to import dashboard without Streamlit installed
+    class _StreamlitStub:
+        def __getattr__(self, name):
+            if name == "session_state":
+                return {}
+            def _noop(*args, **kwargs):
+                if name == "columns":
+                    return [self for _ in range(args[0] if args else 1)]
+                if name == "tabs":
+                    return [self for _ in range(len(args[0]) if args else 1)]
+                if name == "expander":
+                    return self
+                if name == "stop":
+                    raise RuntimeError("Streamlit is not installed")
+                return None
+            return _noop
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    st = _StreamlitStub()
 
 APP_ROOT = Path(__file__).resolve().parent
 SRC_ROOT = APP_ROOT / "src"
