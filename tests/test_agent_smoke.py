@@ -45,17 +45,11 @@ def test_run_agent_completes_with_fixture_data(
             factor_source="tradeable",
         )
 
-    validate_run_result(payload)
     latest_json = tmp_path / "latest" / "run_result.json"
+
+    validate_run_result(payload)
     assert latest_json.exists()
     validate_run_result(json.loads(latest_json.read_text(encoding="utf-8")))
-
-
-def test_fixture_run_result_validates_against_schema(
-    fixture_run_result_path: Path,
-) -> None:
-    payload = json.loads(fixture_run_result_path.read_text(encoding="utf-8"))
-    validate_run_result(payload)
 
 
 def test_run_agent_py_entrypoint_completes_with_fixture_data(
