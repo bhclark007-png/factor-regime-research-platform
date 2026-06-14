@@ -355,10 +355,12 @@ def _fetch_ccc_oas_series(ticker: str, start: str, end: str | None) -> pd.Series
         latest.attrs["source"] = "fred_recent"
         return _filter_date_range(latest.to_frame("value"), start, end)["value"]
 
-    raise RuntimeError(
-        "No CCC OAS seed data available. Add data/ccc_oas_history.csv or set "
-        f"TRADING_ECONOMICS_API_KEY. Latest FRED error: {latest_error}"
+    message = (
+        "No CCC OAS seed data available. "
+        "Add data/ccc_oas_history.csv or set TRADING_ECONOMICS_API_KEY. "
+        f"Latest FRED error: {latest_error}"
     )
+    raise RuntimeError(message)
 
 
 def _fetch_manufacturing_growth_proxy(
