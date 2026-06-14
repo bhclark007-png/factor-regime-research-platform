@@ -67,12 +67,20 @@ Tracked metrics:
 - Track whether improvements persist out of sample and after transaction-cost assumptions.
 - Report whether the current Random Forest model adds value over simple
   baselines before treating model-selected leadership as useful.
+- v0.7 validation diagnostics report which credit and volatility variables have
+  the most explanatory value for future factor leadership using simple
+  mean-spread and one-vs-rest correlation measures.
+- Historical analog validation now reports weighted similarity, closest
+  historical regime labels, and subsequent 1M, 3M, and 6M factor returns.
 
 ## Regime-Break Risk Framework
 
 - Current status: hybrid, not a fully calibrated transition-label model.
 - Historical regime breaks are defined from sustained changes in realized factor
   leadership, filtered by elevated credit or volatility stress when available.
+- v0.7 transition diagnostics label detected breaks as risk-off leadership
+  shifts, risk-on reaccelerations, stress-confirmed rotations, or generic
+  factor-leadership rotations.
 - Monitored indicators are ranked by how often high-stress readings appeared in
   the lookback window before those detected breaks.
 - Each risk reports historical frequency before transitions, current

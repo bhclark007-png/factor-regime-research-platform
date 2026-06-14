@@ -33,6 +33,10 @@
 - Credit Leadership Score is bounded from 0 to 100.
 - Regime Stability Score is bounded from 0 to 100.
 - Existing static score thresholds are provisional and must be reviewed as validation improves.
+- Confidence is a decision-support score rather than a calibrated probability.
+  v0.7 development blends model probability, analog agreement, credit
+  leadership agreement, data quality, and regime stability into an
+  interpretable component breakdown.
 - Dynamic risk monitoring ranks indicators by historical regime-break behavior
   and severity percentile rather than fixed thresholds where possible.
 - Regime-break risk logic is hybrid. It uses realized factor-leadership changes

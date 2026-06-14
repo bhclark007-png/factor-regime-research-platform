@@ -219,6 +219,30 @@ def render_metrics(result: dict) -> None:
     cols[4].metric("CV hit rate", pct(regime["cv_accuracy"]))
 
 
+def render_confidence_breakdown(result: dict) -> None:
+    confidence = result.get("confidence_breakdown", {})
+    if not confidence:
+        return
+    st.subheader("Confidence Breakdown")
+    st.caption(confidence.get("method", "Confidence scoring"))
+    components = confidence.get("components", {})
+    weights = confidence.get("weights", {})
+    rows = [
+        {
+            "component": name,
+            "value": value,
+            "weight": weights.get(name),
+        }
+        for name, value in components.items()
+    ]
+    table = pd.DataFrame(rows)
+    if table.empty:
+        return
+    table["value"] = table["value"].map(pct)
+    table["weight"] = table["weight"].map(pct)
+    st.dataframe(table, hide_index=True, use_container_width=True)
+
+
 def render_probabilities(result: dict) -> None:
     st.subheader("Factor Probabilities")
     probs = frame_from_records(result.get("factor_probabilities", []))
@@ -296,10 +320,18 @@ def render_analogs(result: dict) -> None:
     if rows.empty:
         st.info("No analog periods available.")
         return
-    display = rows[
-        ["date", "distance", "best_factor", "best_factor_forward_excess_return"]
-    ].copy()
+    visible = [
+        "date",
+        "distance",
+        "similarity_score",
+        "historical_regime",
+        "best_factor",
+        "best_factor_forward_excess_return",
+    ]
+    display = rows[[col for col in visible if col in rows]].copy()
     display["distance"] = display["distance"].map(lambda x: f"{x:.2f}")
+    if "similarity_score" in display:
+        display["similarity_score"] = display["similarity_score"].map(pct)
     display["best_factor_forward_excess_return"] = display[
         "best_factor_forward_excess_return"
     ].map(pct)
@@ -342,6 +374,24 @@ def render_validation(result: dict) -> None:
     horizons = validation.get("by_horizon", {})
     if not horizons:
         return
+
+    credit_validation = validation.get("credit_leadership_validation", {})
+    credit_rows = frame_from_records(credit_validation.get("top_variables", []))
+    if not credit_rows.empty:
+        st.markdown("Credit leadership validation")
+        visible = [
+            "variable",
+            "observations",
+            "mean_spread_between_future_winners",
+            "max_abs_one_vs_rest_correlation",
+            "explanatory_value",
+        ]
+        st.dataframe(
+            credit_rows[[col for col in visible if col in credit_rows]],
+            hide_index=True,
+            use_container_width=True,
+        )
+
     tabs = st.tabs([f"{h}M" for h in horizons.keys()])
     for tab_item, (horizon, payload) in zip(tabs, horizons.items()):
         with tab_item:
@@ -487,6 +537,8 @@ def main() -> None:
     result = load_result()
     render_header(result)
     render_metrics(result)
+    st.markdown('<div class="section"></div>', unsafe_allow_html=True)
+    render_confidence_breakdown(result)
     st.markdown('<div class="section"></div>', unsafe_allow_html=True)
     render_probabilities(result)
     st.markdown('<div class="section"></div>', unsafe_allow_html=True)

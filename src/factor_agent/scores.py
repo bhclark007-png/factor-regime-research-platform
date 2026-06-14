@@ -176,3 +176,63 @@ def regime_label(probabilities: pd.Series, credit_score: int, stability: int) ->
     if top == "value":
         return "Reflation / Cyclical"
     return "Mixed / Data-Dependent"
+
+
+def confidence_breakdown(
+    probabilities: pd.Series,
+    analogs: dict,
+    credit_score: int,
+    stability_score: int,
+    data_quality: dict,
+) -> dict:
+    """Blend interpretable confidence components into a single score.
+
+    The score is not a probability. It is a 0-1 decision-support confidence
+    measure that combines model strength with independent confirmation.
+    """
+    if probabilities.empty:
+        model_probability = 0.0
+        top_factor = "unknown"
+    else:
+        model_probability = float(probabilities.iloc[0])
+        top_factor = str(probabilities.index[0])
+
+    analog_rows = analogs.get("analogs", []) if analogs else []
+    if analog_rows:
+        analog_hits = [row.get("best_factor") == top_factor for row in analog_rows]
+        analog_agreement = float(sum(analog_hits) / len(analog_hits))
+    else:
+        analog_agreement = 0.5
+
+    if top_factor in {"momentum", "small_cap", "value"}:
+        credit_agreement = credit_score / 100
+    elif top_factor in {"quality", "low_vol"}:
+        credit_agreement = 1 - credit_score / 100
+    else:
+        credit_agreement = 0.5
+
+    stability_component = stability_score / 100
+    data_quality_component = float(data_quality.get("confidence_multiplier", 1.0))
+    components = {
+        "model_probability": model_probability,
+        "analog_agreement": analog_agreement,
+        "credit_leadership_agreement": float(max(0.0, min(1.0, credit_agreement))),
+        "data_quality": data_quality_component,
+        "regime_stability": float(max(0.0, min(1.0, stability_component))),
+    }
+    weights = {
+        "model_probability": 0.35,
+        "analog_agreement": 0.20,
+        "credit_leadership_agreement": 0.15,
+        "data_quality": 0.15,
+        "regime_stability": 0.15,
+    }
+    score = sum(components[name] * weight for name, weight in weights.items())
+
+    return {
+        "method": "weighted_interpretable_components",
+        "score": float(max(0.0, min(1.0, score))),
+        "top_factor": top_factor,
+        "components": components,
+        "weights": weights,
+    }
