@@ -142,7 +142,7 @@ class EngineContractTests(unittest.TestCase):
         validation = validate_factor_model(
             features, factor_excess, horizons=(1, 3), min_train_months=36
         )
-        self.assertEqual(validation["version"], "0.6")
+        self.assertEqual(validation["version"], "0.6.1")
         self.assertIn("validation_window", validation)
         self.assertIn("1", validation["by_horizon"])
         self.assertIn("confusion_matrix", validation["by_horizon"]["1"])
@@ -188,7 +188,7 @@ class EngineContractTests(unittest.TestCase):
 
     def test_run_result_schema_validation(self) -> None:
         payload = {
-            "schema_version": "0.6",
+            "schema_version": "0.6.1",
             "run_id": "test",
             "generated_at": "2026-06-13T12:00:00",
             "parameters": {},
@@ -202,7 +202,7 @@ class EngineContractTests(unittest.TestCase):
             "data_status": {},
             "data_quality": {"data_impaired": False},
             "factor_history": {"selected_mode": "tradeable"},
-            "validation": {"version": "0.6"},
+            "validation": {"version": "0.6.1"},
             "dynamic_risks": {"method": "stress_percentile_monitoring"},
             "regime_break_risks": {"method": "historical_regime_break_monitoring"},
             "artifacts": {},
@@ -394,7 +394,7 @@ class EngineContractTests(unittest.TestCase):
                 ),
                 patch(
                     "factor_agent.agent.validate_factor_model",
-                    return_value={"version": "0.6", "by_horizon": {}, "summary": []},
+                    return_value={"version": "0.6.1", "by_horizon": {}, "summary": []},
                 ),
             ):
                 payload = run(
@@ -491,7 +491,7 @@ class EngineContractTests(unittest.TestCase):
                 ),
                 patch(
                     "factor_agent.agent.validate_factor_model",
-                    return_value={"version": "0.6", "by_horizon": {}, "summary": []},
+                    return_value={"version": "0.6.1", "by_horizon": {}, "summary": []},
                 ) as validation_mock,
             ):
                 payload = run(

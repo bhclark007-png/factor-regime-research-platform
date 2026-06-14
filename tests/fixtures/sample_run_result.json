@@ -1,0 +1,64 @@
+{
+  "schema_version": "0.6.1",
+  "run_id": "fixture",
+  "generated_at": "2026-06-13T12:00:00",
+  "parameters": {
+    "factor_source": "tradeable",
+    "horizon_months": 3
+  },
+  "regime": {
+    "label": "Mixed / Data-Dependent",
+    "top_factor": "value",
+    "top_factor_probability": 0.4,
+    "adjusted_confidence": 0.32,
+    "credit_leadership_score": 60,
+    "regime_stability_score": 70,
+    "cv_accuracy": 0.35
+  },
+  "factor_probabilities": [
+    {
+      "name": "value",
+      "probability": 0.4
+    }
+  ],
+  "credit_drivers": [
+    "HY spreads are relatively contained."
+  ],
+  "risks": [],
+  "dynamic_risks": {
+    "method": "stress_percentile_monitoring",
+    "transition_probability": null,
+    "risks": []
+  },
+  "regime_break_risks": {
+    "method": "historical_regime_break_monitoring",
+    "defined_break_count": 0,
+    "transition_probability": null,
+    "top_regime_change_risks": []
+  },
+  "historical_analogs": {
+    "analogs": []
+  },
+  "feature_importances": [],
+  "backtest_summary": [],
+  "backtest_metrics": {},
+  "validation": {
+    "version": "0.6.1",
+    "by_horizon": {},
+    "summary": []
+  },
+  "factor_history": {
+    "selected_mode": "tradeable",
+    "model_series": "tradeable_etf_proxy"
+  },
+  "data_quality": {
+    "data_impaired": false
+  },
+  "data_status": {
+    "sources_total": 0,
+    "sources_successful": 0,
+    "sources_failed": 0,
+    "sources": []
+  },
+  "artifacts": {}
+}

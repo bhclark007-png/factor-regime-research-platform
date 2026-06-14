@@ -14,4 +14,5 @@ Use Python as the primary language.
 
 ## Consequences
 
-Python provides strong finance/data tooling and fast iteration. Dependency management and data-source fragility must be managed carefully.
+Python provides strong finance/data tooling and fast iteration. Dependency
+management and data-source fragility must be managed carefully.

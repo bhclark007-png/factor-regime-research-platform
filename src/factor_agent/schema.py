@@ -35,7 +35,7 @@ class RunResult:
     data_quality: dict[str, Any]
     data_status: dict[str, Any]
     artifacts: dict[str, Any]
-    schema_version: str = "0.6"
+    schema_version: str = "0.6.1"
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -74,10 +74,10 @@ def validate_run_result(payload: dict[str, Any]) -> None:
         raise ValueError("RunResult.factor_probabilities must be a list")
     if not isinstance(payload["data_quality"].get("data_impaired"), bool):
         raise ValueError("RunResult.data_quality.data_impaired must be a bool")
-    if payload["schema_version"] != "0.6":
-        raise ValueError("RunResult.schema_version must be 0.6")
-    if payload.get("validation", {}).get("version") != "0.6":
-        raise ValueError("RunResult.validation.version must be 0.6")
+    if payload["schema_version"] != "0.6.1":
+        raise ValueError("RunResult.schema_version must be 0.6.1")
+    if payload.get("validation", {}).get("version") != "0.6.1":
+        raise ValueError("RunResult.validation.version must be 0.6.1")
 
     factor_history = payload["factor_history"]
     if factor_history.get("selected_mode") not in {"academic", "tradeable", "combined"}:

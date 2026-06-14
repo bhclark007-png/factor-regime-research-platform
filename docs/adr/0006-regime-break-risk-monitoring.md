@@ -6,15 +6,21 @@ Accepted
 
 ## Context
 
-Percentile-only risk flags are easy to interpret, but they can overstate routine extremes and miss the indicators that historically mattered before a regime transition.
+Percentile-only risk flags are easy to interpret, but they can overstate routine
+extremes and miss the indicators that historically mattered before a regime
+transition.
 
 The platform needs regime-risk logic that is still interpretable but more historically grounded.
 
 ## Decision
 
-Supplement percentile stress monitoring with regime-break risk monitoring. Define historical breaks using changes in realized factor leadership, credit stress, volatility, and model regime labels where available.
+Supplement percentile stress monitoring with regime-break risk monitoring.
+Define historical breaks using changes in realized factor leadership, credit
+stress, volatility, and model regime labels where available.
 
-For the active regime, rank indicators by how frequently they appeared before historical breaks and report historical frequency, current distance-to-risk, severity percentile, and confidence.
+For the active regime, rank indicators by how frequently they appeared before
+historical breaks and report historical frequency, current distance-to-risk,
+severity percentile, and confidence.
 
 ## Consequences
 

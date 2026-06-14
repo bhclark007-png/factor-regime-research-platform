@@ -1,6 +1,6 @@
 [project]
 name = "factor-regime-agent"
-version = "0.6.0"
+version = "0.6.1"
 description = "Interpretable factor-regime research platform for daily market briefs."
 requires-python = ">=3.11,<3.13"
 
@@ -12,3 +12,6 @@ where = ["src"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/test_engines.py" = ["E402"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]

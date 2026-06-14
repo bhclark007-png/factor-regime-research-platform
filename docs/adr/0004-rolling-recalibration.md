@@ -10,7 +10,8 @@ Daily model recalibration can create noise, instability, and false precision.
 
 ## Decision
 
-Use daily data updates, weekly analog updates, monthly risk-factor updates, quarterly model reviews, and annual methodology reviews.
+Use daily data updates, weekly analog updates, monthly risk-factor updates,
+quarterly model reviews, and annual methodology reviews.
 
 ## Consequences
 

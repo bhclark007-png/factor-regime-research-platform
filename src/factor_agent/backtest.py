@@ -426,7 +426,7 @@ def validate_factor_model(
         summaries.append(results[str(horizon)]["summary"])
 
     return {
-        "version": "0.6",
+        "version": "0.6.1",
         "objective": "Compare model-selected factor exposure against simple interpretable baselines, equal-weight factors, and SPY.",
         "horizons": list(horizons),
         "validation_window": {
