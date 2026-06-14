@@ -16,7 +16,12 @@ from .features import (
 )
 from .french import get_kenneth_french_factors, combine_academic_and_tradeable_factors
 from .model import train_factor_model, summarize_forward_returns
-from .scores import credit_leadership_score, regime_stability_score, regime_label
+from .scores import (
+    confidence_breakdown,
+    credit_leadership_score,
+    regime_stability_score,
+    regime_label,
+)
 from .brief import make_daily_brief
 from .analog import find_historical_analogs
 from .backtest import factor_backtest_metrics, validate_factor_model
@@ -155,7 +160,15 @@ def run(
     credit_score, credit_drivers = credit_leadership_score(latest_features)
     stability_score, risks = regime_stability_score(latest_features)
     regime = regime_label(result["latest_probabilities"], credit_score, stability_score)
-    analogs = find_historical_analogs(result["X"], forward_returns)
+    horizon_forward_returns = {
+        months: factor_excess.rolling(months).sum().shift(-months)
+        for months in (1, 3, 6)
+    }
+    analogs = find_historical_analogs(
+        result["X"],
+        forward_returns,
+        horizon_forward_returns=horizon_forward_returns,
+    )
     dynamic_risks = dynamic_regime_risks(result["X"])
     regime_break_risks = regime_break_risk_monitor(result["X"], result["y"], regime)
 
@@ -187,9 +200,14 @@ def run(
     successful_sources = [s for s in source_statuses if s["status"] != "failed"]
     failed_sources = [s for s in source_statuses if s["status"] == "failed"]
     data_quality = evaluate_data_quality(source_statuses)
-    adjusted_confidence = float(result["latest_probabilities"].iloc[0]) * float(
-        data_quality["confidence_multiplier"]
+    confidence = confidence_breakdown(
+        result["latest_probabilities"],
+        analogs,
+        credit_score,
+        stability_score,
+        data_quality,
     )
+    adjusted_confidence = float(confidence["score"])
 
     brief = make_daily_brief(
         probabilities=result["latest_probabilities"],
@@ -239,6 +257,7 @@ def run(
         backtest_summary=backtest_summary.to_dict(orient="records"),
         backtest_metrics=backtest_metrics,
         validation=validation,
+        confidence_breakdown=confidence,
         factor_history={
             **factor_history_selection,
             "academic_factor_metadata": french_history.metadata,

@@ -6,6 +6,7 @@ from factor_agent.analog import find_historical_analogs
 from factor_agent.risk import (
     dynamic_regime_risks,
     identify_regime_breaks,
+    identify_regime_transitions,
     regime_break_risk_monitor,
 )
 
@@ -38,6 +39,7 @@ def test_analog_and_dynamic_risk_contracts() -> None:
     break_risks = regime_break_risk_monitor(features, break_winner, "test")
 
     assert "analogs" in analogs
+    assert analogs["similarity_method"] == "weighted_zscore_euclidean_distance"
     assert "risks" in risks
     assert "top_regime_change_risks" in break_risks
 
@@ -122,10 +124,50 @@ def test_risk_engine_distinguishes_stress_percentile_and_regime_break_methods() 
 
     stress = dynamic_regime_risks(features)
     breaks = identify_regime_breaks(winners, features)
+    transitions = identify_regime_transitions(winners, features)
     regime_break = regime_break_risk_monitor(features, winners, "test")
 
     assert stress["method"] == "stress_percentile_monitoring"
     assert regime_break["method"] == "historical_regime_break_monitoring"
     assert len(breaks) > 0
+    assert transitions
+    assert "transition_label" in transitions[0]
     assert regime_break["defined_break_count"] == len(breaks)
+    assert regime_break["transition_label_counts"]
     assert regime_break["top_regime_change_risks"][0]["break_observations"] > 0
+
+
+def test_analog_reports_multi_horizon_forward_returns() -> None:
+    index = pd.date_range("2010-01-31", periods=72, freq="ME")
+    features = pd.DataFrame(
+        {
+            "hy_oas": [300 + i % 12 for i in range(72)],
+            "hy_oas_3m_chg": [i % 8 for i in range(72)],
+            "vix": [15 + i % 6 for i in range(72)],
+            "ism_mfg": [50 + i % 5 for i in range(72)],
+        },
+        index=index,
+    )
+    factor_returns = pd.DataFrame(
+        {
+            "value": [0.01 if i % 2 == 0 else -0.002 for i in range(72)],
+            "quality": [0.004 if i % 2 else 0.001 for i in range(72)],
+        },
+        index=index,
+    )
+    horizon_returns = {
+        horizon: factor_returns.rolling(horizon).sum().shift(-horizon)
+        for horizon in (1, 3, 6)
+    }
+
+    analogs = find_historical_analogs(
+        features,
+        horizon_returns[3],
+        horizon_forward_returns=horizon_returns,
+        n=3,
+    )
+
+    assert analogs["closest_historical_regimes"]
+    assert analogs["analogs"]
+    horizons = analogs["analogs"][0]["forward_factor_returns_by_horizon"]
+    assert {"1m", "3m", "6m"}.issubset(horizons)

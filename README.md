@@ -21,6 +21,9 @@ reproducibility, and statistical validation over model complexity.
 - Historical analog engine based on similar macro/credit environments.
 - Baseline model validation against previous-winner, factor momentum,
   logistic regression, decision tree, equal-weight factors, and SPY.
+- v0.7 validation branch diagnostics for multi-horizon analog returns,
+  transition-labeled regime breaks, credit-signal explanatory value, and
+  component-level confidence scoring.
 - Canonical `run_result.json` schema used by the dashboard, brief writer, and
   future modules.
 - Reproducible run artifacts in JSON, CSV, and Markdown.
@@ -37,6 +40,9 @@ reproducibility, and statistical validation over model complexity.
   stress frequency.
 - Experimental: loan proxies and optional vendor data are not robust enough to
   treat as core model inputs.
+- In development on `v0.7-validation`: richer historical validation and
+  confidence diagnostics. These are output/dashboard diagnostics and do not
+  expand the daily brief.
 - Not built yet: portfolio tracking, allocation recommendations, and security
   selection workflows.
 

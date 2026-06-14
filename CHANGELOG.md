@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased - v0.7 Validation Development
+
+- Improved historical analog diagnostics with weighted z-score similarity,
+  closest historical regime labels, and 1M/3M/6M subsequent factor returns.
+- Added explicit transition labels to regime-break monitoring while preserving
+  separate stress-percentile monitoring.
+- Added credit leadership validation to report which credit and volatility
+  variables have explanatory value for future factor leadership.
+- Expanded validation metadata to identify the Random Forest model and its
+  comparison universe.
+- Added component-level confidence scoring based on model probability, analog
+  agreement, credit leadership agreement, data quality, and regime stability.
+- Kept daily brief formatting unchanged; new diagnostics are emitted to
+  `run_result.json` for dashboard/output consumers.
+
 ## v0.6.1 - Quality And Test Hardening
 
 - Reformatted Python with Black and Ruff for readable GitHub diffs.

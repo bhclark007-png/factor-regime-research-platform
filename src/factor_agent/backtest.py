@@ -8,6 +8,19 @@ from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.tree import DecisionTreeClassifier
 
+CREDIT_VALIDATION_VARIABLES = [
+    "hy_oas",
+    "ig_oas",
+    "ccc_oas",
+    "hy_oas_1m_chg",
+    "hy_oas_3m_chg",
+    "ig_oas_3m_chg",
+    "ccc_oas_3m_chg",
+    "ccc_minus_hy_3m_chg",
+    "vix",
+    "vix_1m_chg",
+]
+
 
 def factor_backtest_metrics(forward_returns: pd.DataFrame, winner: pd.Series) -> dict:
     """Calculate interpretable factor prediction baseline metrics.
@@ -301,6 +314,67 @@ def _confusion_matrix_records(predictions: pd.DataFrame) -> list[dict]:
     return rows
 
 
+def validate_credit_leadership(
+    features: pd.DataFrame,
+    winner: pd.Series,
+    variables: list[str] | None = None,
+) -> dict:
+    """Estimate which credit/volatility variables explain future factor leadership.
+
+    This is intentionally simple and interpretable: each variable is scored by
+    the spread between factor-specific means and by absolute correlation with
+    one-vs-rest future factor leadership indicators.
+    """
+    variables = variables or CREDIT_VALIDATION_VARIABLES
+    dataset = features.join(winner.rename("winner")).dropna(subset=["winner"])
+    if dataset.empty:
+        return {"method": "mean_spread_and_one_vs_rest_correlation", "variables": []}
+
+    rows = []
+    for variable in variables:
+        if variable not in dataset:
+            continue
+        series = pd.to_numeric(dataset[variable], errors="coerce")
+        usable = dataset.assign(_variable=series).dropna(subset=["_variable"])
+        if len(usable) < 24 or usable["winner"].nunique() < 2:
+            continue
+
+        factor_means = usable.groupby("winner")["_variable"].mean().sort_values()
+        mean_spread = float(factor_means.max() - factor_means.min())
+        correlations = {}
+        for factor in sorted(usable["winner"].astype(str).unique()):
+            target = (usable["winner"].astype(str) == factor).astype(float)
+            corr = usable["_variable"].corr(target)
+            if pd.notna(corr):
+                correlations[factor] = float(corr)
+
+        max_abs_correlation = (
+            max(abs(value) for value in correlations.values()) if correlations else 0.0
+        )
+        explanatory_value = float(max_abs_correlation * mean_spread)
+        rows.append(
+            {
+                "variable": variable,
+                "observations": int(len(usable)),
+                "mean_spread_between_future_winners": mean_spread,
+                "max_abs_one_vs_rest_correlation": float(max_abs_correlation),
+                "explanatory_value": explanatory_value,
+                "factor_mean_values": {
+                    str(factor): float(value) for factor, value in factor_means.items()
+                },
+                "one_vs_rest_correlations": correlations,
+            }
+        )
+
+    rows = sorted(rows, key=lambda row: row["explanatory_value"], reverse=True)
+    return {
+        "method": "mean_spread_and_one_vs_rest_correlation",
+        "objective": "Evaluate whether credit spreads, spread changes, and volatility help explain future factor leadership.",
+        "variables": rows,
+        "top_variables": rows[:5],
+    }
+
+
 def validate_factor_model(
     features: pd.DataFrame,
     factor_excess: pd.DataFrame,
@@ -425,9 +499,23 @@ def validate_factor_model(
         results[str(horizon)]["model_value_add"] = comparisons
         summaries.append(results[str(horizon)]["summary"])
 
+    credit_validation = validate_credit_leadership(
+        features,
+        factor_excess.rolling(3).sum().shift(-3).dropna(how="all").idxmax(axis=1),
+    )
+
     return {
         "version": "0.6.1",
-        "objective": "Compare model-selected factor exposure against simple interpretable baselines, equal-weight factors, and SPY.",
+        "objective": "Compare model-selected factor exposure against Random Forest, simple interpretable baselines, equal-weight factors, and SPY.",
+        "model": "random_forest",
+        "comparison_universe": [
+            "SPY",
+            "equal_weight_factors",
+            "prior_month_winner",
+            "factor_momentum",
+            "random_forest_model",
+            "simple_interpretable_decision_tree",
+        ],
         "horizons": list(horizons),
         "validation_window": {
             "max_months": max_validation_months,
@@ -445,4 +533,5 @@ def validate_factor_model(
         },
         "summary": summaries,
         "by_horizon": results,
+        "credit_leadership_validation": credit_validation,
     }

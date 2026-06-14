@@ -16,7 +16,10 @@
 - Completed: historical analog engine for similar macro and credit environments.
 - Partial: Regime Stability Score and hybrid regime-break transition monitoring.
 - Completed: dashboard-only validation of factor forecast horizons against simple baselines.
-- Next: deeper transition-label validation and loan-market proxy review.
+- In progress for v0.7: multi-horizon analog diagnostics, transition-labeled
+  regime-break monitoring, credit-signal validation, and component-level
+  confidence scoring.
+- Next: deeper transition-label calibration and loan-market proxy review.
 
 ## Phase 3: Portfolio Tracking
 

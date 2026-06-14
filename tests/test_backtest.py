@@ -2,7 +2,11 @@ from __future__ import annotations
 
 import pandas as pd
 
-from factor_agent.backtest import factor_backtest_metrics, validate_factor_model
+from factor_agent.backtest import (
+    factor_backtest_metrics,
+    validate_credit_leadership,
+    validate_factor_model,
+)
 
 
 def test_backtest_metrics_contract() -> None:
@@ -52,3 +56,30 @@ def test_validation_contract() -> None:
     assert "previous_winner" in compared
     assert "equal_weight_factors" in compared
     assert "spy" in compared
+    assert validation["model"] == "random_forest"
+    assert "credit_leadership_validation" in validation
+
+
+def test_credit_leadership_validation_ranks_credit_variables() -> None:
+    index = pd.date_range("2017-01-31", periods=72, freq="ME")
+    features = pd.DataFrame(
+        {
+            "hy_oas": [300 if i % 2 == 0 else 500 for i in range(72)],
+            "ig_oas": [100 if i % 2 == 0 else 150 for i in range(72)],
+            "ccc_oas": [800 if i % 2 == 0 else 1100 for i in range(72)],
+            "hy_oas_3m_chg": [-20 if i % 2 == 0 else 60 for i in range(72)],
+            "vix": [15 if i % 2 == 0 else 28 for i in range(72)],
+        },
+        index=index,
+    )
+    winner = pd.Series(
+        ["value" if i % 2 == 0 else "quality" for i in range(72)],
+        index=index,
+        name="winner",
+    )
+
+    validation = validate_credit_leadership(features, winner)
+
+    assert validation["method"] == "mean_spread_and_one_vs_rest_correlation"
+    assert validation["top_variables"]
+    assert validation["top_variables"][0]["explanatory_value"] > 0

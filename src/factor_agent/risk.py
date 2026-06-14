@@ -84,19 +84,30 @@ def _stress_series(features: pd.DataFrame, feature: str) -> pd.Series:
     return series
 
 
-def identify_regime_breaks(
+def _transition_label(previous: str, current: str, stress_value: float) -> str:
+    if current in {"quality", "low_vol"}:
+        return "risk_off_leadership_shift"
+    if previous in {"quality", "low_vol"} and current in {
+        "value",
+        "momentum",
+        "small_cap",
+    }:
+        return "risk_on_reacceleration"
+    if stress_value >= 0.8:
+        return "stress_confirmed_factor_rotation"
+    return "factor_leadership_rotation"
+
+
+def identify_regime_transitions(
     winner: pd.Series,
     features: pd.DataFrame,
     min_streak: int = 3,
-) -> list[pd.Timestamp]:
-    """Define historical regime breaks from realized leadership and stress.
-
-    A break occurs when realized factor leadership changes after a minimum
-    streak and coincides with elevated credit/volatility stress when available.
-    """
+) -> list[dict]:
+    """Label historical transitions using factor leadership and stress context."""
     aligned = winner.dropna()
     if aligned.empty:
         return []
+
     stress_cols = [
         c
         for c in ["hy_oas_3m_chg", "vix_1m_chg", "ccc_minus_hy_3m_chg"]
@@ -110,21 +121,50 @@ def identify_regime_breaks(
             [stress, percentile.reindex(stress.index).fillna(0)], axis=1
         ).max(axis=1)
 
-    breaks = []
+    transitions = []
     streak = 1
     for i in range(1, len(aligned)):
-        date = aligned.index[i]
-        previous = aligned.iloc[i - 1]
-        value = aligned.iloc[i]
-        if value == previous:
+        date = pd.Timestamp(aligned.index[i])
+        previous = str(aligned.iloc[i - 1])
+        current = str(aligned.iloc[i])
+        if current == previous:
             streak += 1
             continue
-        if streak >= min_streak:
-            stress_value = stress.reindex([date]).iloc[0] if date in stress.index else 0
-            if not stress_cols or stress_value >= 0.6:
-                breaks.append(pd.Timestamp(date))
+
+        stress_value = (
+            float(stress.reindex([date]).iloc[0]) if date in stress.index else 0.0
+        )
+        if streak >= min_streak and (not stress_cols or stress_value >= 0.6):
+            transitions.append(
+                {
+                    "date": date,
+                    "from_factor": previous,
+                    "to_factor": current,
+                    "transition_label": _transition_label(
+                        previous, current, stress_value
+                    ),
+                    "stress_percentile": stress_value,
+                }
+            )
         streak = 1
-    return breaks
+
+    return transitions
+
+
+def identify_regime_breaks(
+    winner: pd.Series,
+    features: pd.DataFrame,
+    min_streak: int = 3,
+) -> list[pd.Timestamp]:
+    """Define historical regime breaks from realized leadership and stress.
+
+    A break occurs when realized factor leadership changes after a minimum
+    streak and coincides with elevated credit/volatility stress when available.
+    """
+    return [
+        pd.Timestamp(transition["date"])
+        for transition in identify_regime_transitions(winner, features, min_streak)
+    ]
 
 
 def regime_break_risk_monitor(
@@ -136,7 +176,8 @@ def regime_break_risk_monitor(
 ) -> dict:
     """Rank indicators by frequency of stress before historical regime breaks."""
     numeric = features.select_dtypes(include=["number"]).ffill()
-    breaks = identify_regime_breaks(winner, numeric)
+    transitions = identify_regime_transitions(winner, numeric)
+    breaks = [pd.Timestamp(transition["date"]) for transition in transitions]
     monitored = [feature for feature in MONITORED_RISK_FEATURES if feature in numeric]
     rows = []
 
@@ -179,6 +220,7 @@ def regime_break_risk_monitor(
                 "severity_percentile": severity,
                 "confidence": confidence,
                 "break_observations": int(eligible_breaks),
+                "risk_type": "transition_precondition",
             }
         )
 
@@ -216,6 +258,22 @@ def regime_break_risk_monitor(
         "description": "Defines breaks from realized factor-leadership changes after sustained streaks, filtered by elevated credit/volatility stress when available.",
         "active_regime": active_regime,
         "defined_break_count": int(len(breaks)),
+        "transition_labels": [
+            {
+                **transition,
+                "date": pd.Timestamp(transition["date"]).strftime("%Y-%m-%d"),
+            }
+            for transition in transitions[-20:]
+        ],
+        "transition_label_counts": (
+            pd.Series([transition["transition_label"] for transition in transitions])
+            .value_counts()
+            .rename_axis("transition_label")
+            .reset_index(name="count")
+            .to_dict(orient="records")
+            if transitions
+            else []
+        ),
         "transition_probability": transition_probability,
         "top_regime_change_risks": rows,
     }
