@@ -23,6 +23,11 @@ from .backtest import factor_backtest_metrics, validate_factor_model
 from .quality import evaluate_data_quality
 from .risk import dynamic_regime_risks, regime_break_risk_monitor
 from .schema import RegimeResult, RunResult, validate_run_result
+from .signal_validation import (
+    calculate_forward_excess_returns,
+    signal_validation_snapshot,
+    validate_all_signals,
+)
 
 FACTOR_SOURCE_MODES = {"academic", "tradeable", "combined"}
 
@@ -176,6 +181,15 @@ def run(
     backtest_summary.to_csv(run_dir / "backtest_summary.csv", index=False)
     backtest_metrics = factor_backtest_metrics(forward_returns, winner)
     validation = validate_factor_model(features, factor_excess)
+    signal_forward_returns = calculate_forward_excess_returns(
+        factor_excess, horizons=(1, 3, 6)
+    )
+    signal_summary, signal_detail = validate_all_signals(
+        result["X"], signal_forward_returns, horizons=(1, 3, 6)
+    )
+    signal_summary.to_csv(run_dir / "signal_validation_summary.csv", index=False)
+    signal_detail.to_csv(run_dir / "signal_validation_detail.csv", index=False)
+    signal_snapshot = signal_validation_snapshot(signal_summary)
 
     result["feature_importances"].rename("importance").to_csv(
         run_dir / "feature_importances.csv"
@@ -238,7 +252,10 @@ def run(
         ),
         backtest_summary=backtest_summary.to_dict(orient="records"),
         backtest_metrics=backtest_metrics,
-        validation=validation,
+        validation={**validation, "signal_validation": signal_snapshot},
+        signal_validation_available=bool(signal_snapshot["signal_validation_available"]),
+        top_signals=signal_snapshot["top_signals"],
+        weak_signals=signal_snapshot["weak_signals"],
         factor_history={
             **factor_history_selection,
             "academic_factor_metadata": french_history.metadata,
@@ -277,6 +294,8 @@ def run(
             "backtest_summary.csv",
             "feature_importances.csv",
             "run_result.json",
+            "signal_validation_summary.csv",
+            "signal_validation_detail.csv",
         ],
     )
 

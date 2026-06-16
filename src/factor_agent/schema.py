@@ -31,6 +31,9 @@ class RunResult:
     backtest_summary: list[dict[str, Any]]
     backtest_metrics: dict[str, Any]
     validation: dict[str, Any]
+    signal_validation_available: bool
+    top_signals: list[dict[str, Any]]
+    weak_signals: list[dict[str, Any]]
     factor_history: dict[str, Any]
     data_quality: dict[str, Any]
     data_status: dict[str, Any]

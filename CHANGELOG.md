@@ -62,3 +62,11 @@
 
 - Initial factor-regime CLI.
 - Generated factor probabilities, Credit Leadership Score, Regime Stability Score, backtest summary, and Markdown brief.
+
+## v0.7 Signal Validation Lab
+
+- Added `src/factor_agent/signal_validation.py` for feature-by-feature signal validation.
+- Added `tests/test_signal_validation.py` covering IC, hit rate, forward-return alignment, signal classification, and output schemas.
+- Integrated signal validation into the agent pipeline with `signal_validation_summary.csv` and `signal_validation_detail.csv` artifacts.
+- Added Signal Validation Lab dashboard section for top/weak signals by horizon.
+- Added compact signal-validation references to `run_result.json`.

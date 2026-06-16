@@ -14,13 +14,13 @@ import requests
 try:
     import yfinance as yf
     from yfinance import cache as yf_cache
-except ModuleNotFoundError:  # optional runtime dependency; tests can import without it
+except ModuleNotFoundError:  # pragma: no cover - exercised in minimal test envs
     yf = None
     yf_cache = None
 
 try:
     from pandas_datareader.fred import FredReader
-except ModuleNotFoundError:  # optional runtime dependency; tests can import without it
+except ModuleNotFoundError:  # pragma: no cover - exercised in minimal test envs
     FredReader = None
 
 TREASURY_XML_URL = "https://home.treasury.gov/resource-center/data-chart-center/interest-rates/pages/xml"
@@ -492,14 +492,11 @@ def _get_alternate_series(
 def _get_fred_series(
     ticker: str, start: str, end: str | None, retries: int = 1, timeout: int = 12
 ) -> pd.DataFrame:
-    if FredReader is None:
-        raise RuntimeError(
-            "pandas_datareader is required for live FRED downloads. "
-            "Install dependencies with: python -m pip install -r requirements.txt"
-        )
     last_error = None
     for attempt in range(1, retries + 1):
         try:
+            if FredReader is None:
+                raise ModuleNotFoundError("pandas_datareader is required for FRED downloads")
             return FredReader(
                 ticker,
                 start=start,
@@ -647,16 +644,11 @@ def get_etf_prices(
     return_status: bool = False,
 ) -> pd.DataFrame | tuple[pd.DataFrame, list[SourceStatus]]:
     cache_root = Path(cache_dir)
-    if yf is None:
-        raise RuntimeError(
-            "yfinance is required for live ETF downloads. "
-            "Install dependencies with: python -m pip install -r requirements.txt"
-        )
-
+    if yf is None or yf_cache is None:
+        raise ModuleNotFoundError("yfinance is required for ETF price downloads")
     yf_cache_dir = cache_root / "yfinance_runtime"
     yf_cache_dir.mkdir(parents=True, exist_ok=True)
-    if yf_cache is not None:
-        yf_cache.set_cache_location(str(yf_cache_dir))
+    yf_cache.set_cache_location(str(yf_cache_dir))
 
     frames = []
     statuses = []
