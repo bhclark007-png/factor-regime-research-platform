@@ -6,38 +6,20 @@ import sys
 from pathlib import Path
 
 import pandas as pd
-
 try:
     import streamlit as st
-except (
-    ModuleNotFoundError
-):  # allows tests to import dashboard without Streamlit installed
-
-    class _StreamlitStub:
+except ModuleNotFoundError:  # pragma: no cover - used only in minimal test envs
+    class _MissingStreamlit:
         def __getattr__(self, name):
-            if name == "session_state":
-                return {}
-
+            if name == "stop":
+                def _stop():
+                    raise RuntimeError("streamlit is required to run the dashboard")
+                return _stop
             def _noop(*args, **kwargs):
-                if name == "columns":
-                    return [self for _ in range(args[0] if args else 1)]
-                if name == "tabs":
-                    return [self for _ in range(len(args[0]) if args else 1)]
-                if name == "expander":
-                    return self
-                if name == "stop":
-                    raise RuntimeError("Streamlit is not installed")
                 return None
-
             return _noop
 
-        def __enter__(self):
-            return self
-
-        def __exit__(self, exc_type, exc, tb):
-            return False
-
-    st = _StreamlitStub()
+    st = _MissingStreamlit()
 
 APP_ROOT = Path(__file__).resolve().parent
 SRC_ROOT = APP_ROOT / "src"
@@ -47,6 +29,8 @@ if str(SRC_ROOT) not in sys.path:
 LATEST_JSON = APP_ROOT / "output" / "latest" / "run_result.json"
 LATEST_BRIEF = APP_ROOT / "output" / "latest" / "daily_brief.md"
 RUN_HISTORY = APP_ROOT / "output" / "run_history.csv"
+SIGNAL_VALIDATION_SUMMARY = APP_ROOT / "output" / "latest" / "signal_validation_summary.csv"
+SIGNAL_VALIDATION_DETAIL = APP_ROOT / "output" / "latest" / "signal_validation_detail.csv"
 
 
 st.set_page_config(
@@ -406,6 +390,67 @@ def render_validation(result: dict) -> None:
                 st.dataframe(recent, hide_index=True, use_container_width=True)
 
 
+
+def render_signal_validation_lab(result: dict) -> None:
+    st.subheader("Signal Validation Lab")
+    snapshot = result.get("validation", {}).get("signal_validation", {})
+    if snapshot and not snapshot.get("signal_validation_available", True):
+        st.warning("Signal validation was not available for the latest run.")
+
+    if not SIGNAL_VALIDATION_SUMMARY.exists():
+        st.warning(
+            "Signal validation outputs are missing. Run the backend to generate "
+            "output/latest/signal_validation_summary.csv."
+        )
+        return
+
+    summary = pd.read_csv(SIGNAL_VALIDATION_SUMMARY)
+    if summary.empty:
+        st.info("Signal validation summary is empty.")
+        return
+
+    horizons = sorted(summary["horizon"].dropna().unique().tolist())
+    selected_horizon = st.selectbox(
+        "Horizon", options=horizons, format_func=lambda value: f"{int(value)}M"
+    )
+    filtered = summary[summary["horizon"] == selected_horizon].copy()
+    filtered["abs_ic"] = filtered["information_coefficient"].abs()
+
+    left, right = st.columns(2)
+    with left:
+        st.markdown("Top signals by information coefficient")
+        top_ic = filtered.sort_values("abs_ic", ascending=False).head(10).copy()
+        st.dataframe(
+            top_ic.drop(columns=["abs_ic"], errors="ignore"),
+            hide_index=True,
+            use_container_width=True,
+        )
+
+        st.markdown("Top signals by average forward excess return")
+        top_return = filtered.sort_values(
+            "avg_forward_excess_return", ascending=False
+        ).head(10)
+        st.dataframe(top_return, hide_index=True, use_container_width=True)
+
+    with right:
+        st.markdown("Top signals by hit rate")
+        top_hit = filtered.sort_values("hit_rate", ascending=False).head(10)
+        st.dataframe(top_hit, hide_index=True, use_container_width=True)
+
+        st.markdown("Weakest / removal candidates")
+        weak = filtered[filtered["recommendation"] == "Remove"]
+        if weak.empty:
+            weak = filtered.sort_values(
+                ["information_coefficient", "hit_rate"], ascending=[True, True]
+            ).head(10)
+        st.dataframe(weak, hide_index=True, use_container_width=True)
+
+    if SIGNAL_VALIDATION_DETAIL.exists():
+        with st.expander("Validation detail sample", expanded=False):
+            detail = pd.read_csv(SIGNAL_VALIDATION_DETAIL, nrows=500)
+            st.dataframe(detail, hide_index=True, use_container_width=True)
+
+
 def render_source_health(result: dict) -> None:
     st.subheader("Data Source Health")
     data_status = result.get("data_status", {})
@@ -497,6 +542,8 @@ def main() -> None:
     render_analogs(result)
     st.markdown('<div class="section"></div>', unsafe_allow_html=True)
     render_validation(result)
+    st.markdown('<div class="section"></div>', unsafe_allow_html=True)
+    render_signal_validation_lab(result)
     st.markdown('<div class="section"></div>', unsafe_allow_html=True)
     render_factor_history(result)
     st.markdown('<div class="section"></div>', unsafe_allow_html=True)
